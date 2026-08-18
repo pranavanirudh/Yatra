@@ -1,0 +1,99 @@
+# Shock windows -- REFINED BOUNDARIES. The sensitivity arm.
+#
+# Same file format and same rules as shocks.yaml: these are evaluation labels,
+# never model inputs, and every window still needs a citation.
+#
+# WHY THIS FILE EXISTS
+#
+# shocks.yaml was drafted from public reporting before any observations were on
+# disk. Now that they are, three of its boundaries do not survive contact with
+# the series. This file re-draws them, and `make sensitivity` scores the SAME
+# forecasts under both so that the headline finding can be reported with its
+# dependence on this choice made explicit rather than hidden.
+#
+# Nothing here overrides shocks.yaml. That file remains the owner's declaration.
+# This is the alternative hypothesis about where the lines go.
+#
+# WHAT CHANGED, AND ON WHAT EVIDENCE
+#
+# Baseline throughout is the same calendar month averaged over 2015-2018 --
+# four pre-disruption years, deliberately excluding 2019 so the Article 370
+# question is not begged.
+#
+#   article_370   DROPPED. Declared 2019-08..2019-10; the three months come in
+#                 at 92%, 99% and 111% of baseline, and 2019 as a whole is at
+#                 98.4%. The cited sources describe a real collapse in Kashmir
+#                 valley tourism, and that is not in question -- but Katra sits
+#                 outside the valley and the shrine's own series shows no
+#                 monthly signal. The annual decline the rationale quotes
+#                 (85.87 -> 79.40 lakh) is measured against an unusually strong
+#                 2018, not against the norm.
+#
+#   covid         TRIMMED, 2021-12 -> 2021-08. Recovery completes during
+#                 autumn 2021: 2021-09 is at 96% of baseline and 2021-10 to
+#                 2021-12 run 105-127%. Holding the window open through
+#                 December put six recovered or near-normal months in the shock
+#                 bucket. shocks.yaml itself flags this end date as "the most
+#                 arguable choice in this file" and asks for exactly this test.
+#
+#   floods_2025   EXTENDED at the end, 2025-09 -> 2025-10. Both files now start
+#                 this window at 2025-05, covering the compound cause (the May
+#                 security shock and the August landslide). This arm carries it
+#                 one month further: 2025-10 is at 53.6% of baseline, deeper
+#                 than 2025-08 (83%) which both windows already include.
+#
+# RESOLVED 2026-08-18: 2025-05 is no longer unlabelled.
+#
+#   It sat at 45.2% of baseline -- among the deepest non-COVID drops in the
+#   record -- and fell inside no window in either file, so it was scored as an
+#   ordinary month. Both files now open floods_2025 at 2025-05, on a Press Trust
+#   of India report naming the Pahalgam attack and Operation Sindoor alongside
+#   the August landslide. See the rationale in shocks.yaml.
+
+schema_version: 1
+
+windows:
+  # article_370 is deliberately absent. See the header.
+
+  - id: covid
+    label: "COVID-19 closure and capped reopening"
+    start: 2020-03
+    end: 2021-08
+    verified: false
+    rationale: >
+      Yatra suspended 18 March 2020. Reopened 16 August 2020 under a cap of
+      2,000 pilgrims per day, of whom only 100 could come from outside J&K.
+      End date moved from 2021-12 to 2021-08 on the observations: measured
+      against the 2015-2018 same-month mean, 2021-08 is still depressed at 81%
+      while 2021-09 has returned to 96% and the remainder of 2021 runs above
+      baseline. The closure and the capped reopening are unchanged and remain
+      as cited; only the month at which the series returns to normal has been
+      read off the data rather than assumed.
+    source:
+      publisher: Shri Mata Vaishno Devi Shrine Board
+      title: "Yatra Statistics - month-wise break-up of Yatra from 1986"
+      url: https://www.maavaishnodevi.org/yatrastatistics
+      accessed: 2026-08-18
+    corroborating_source:
+      publisher: The Hindu
+      title: "Vaishno Devi yatra suspended over coronavirus"
+      url: https://www.thehindu.com/news/national/other-states/vaishno-devi-yatra-suspended-over-coronavirus/article31103131.ece
+      accessed: 2026-08-18
+
+  - id: floods_2025
+    label: "J&K security shock and monsoon landslide closure (compound)"
+    start: 2025-05
+    end: 2025-10
+    verified: false
+    rationale: >
+      Same compound cause as the declared window -- the May security shock and
+      the late-August landslide closure -- but extended one month further at the
+      end. Against the 2015-2018 same-month mean, 2025-09 falls to 27.9% and
+      2025-10 is still at 53.6%, deeper than 2025-08 at 83.0% which both windows
+      already contain. Ending in September while including August draws the line
+      in the wrong place regardless of which cause is assigned.
+    source:
+      publisher: Shri Mata Vaishno Devi Shrine Board
+      title: "Yatra Statistics - month-wise break-up of Yatra from 1986"
+      url: https://www.maavaishnodevi.org/yatrastatistics
+      accessed: 2026-08-18
