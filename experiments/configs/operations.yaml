@@ -1,0 +1,59 @@
+# Operational forecasting and crowd-planning output.
+#
+# This config turns "which model is most accurate" into "what should be staffed
+# next month". Read docs/operations.md before changing anything here.
+
+schema_version: 1
+
+# Which model produces the forward forecast.
+#
+# `best_clean` picks whichever model had the lowest mean MASE on clean months in
+# the last backtest. That is the right default for routine planning, and the
+# wrong one if a disruption is already under way -- during an open shock the
+# clean-month winner is, by this project's whole hypothesis, likely to be the
+# worst choice. Name a model explicitly to override.
+model: best_clean
+
+# Months ahead to plan for.
+horizons: [1, 2, 3, 4, 5, 6]
+
+# Width of the reported band, as a share of observed backtest errors. 0.9 means
+# the range covers the middle 90% of how wrong this model has actually been at
+# that horizon -- not a model-derived confidence interval, which would assume
+# the model is correctly specified.
+confidence: 0.9
+
+planning:
+  # ------------------------------------------------------------------------
+  # PLANNING RATIOS ARE POLICY. THEY ARE DELIBERATELY EMPTY.
+  #
+  # The forecast supplies expected volume. What counts as a safe volume per
+  # marshal, per medical post, per gate or per ambulance is a judgement made
+  # from site geometry, statutory requirements and operational experience --
+  # none of which this model knows anything about.
+  #
+  # No defaults are shipped, because a ratio invented here would appear in the
+  # briefing table looking exactly like one grounded in site experience, and
+  # nobody reading the output could tell the difference. An under-resourced
+  # shift is not a rounding error at this site.
+  #
+  # Fill these in with figures your operations lead signs off on. Each entry:
+  #
+  #   id            short key, becomes a column
+  #   label         column heading in the briefing
+  #   per_pilgrims  one unit of this resource per N pilgrims on the basis below
+  #   basis         monthly_total | daily_mean | festival_day_total
+  #   minimum       floor, applied however low the forecast goes
+  #
+  # Worked shape (NOT a recommendation -- the number is a placeholder):
+  #
+  #   - id: marshals
+  #     label: Crowd marshals on duty
+  #     per_pilgrims: 500        # one marshal per 500 pilgrims per day
+  #     basis: daily_mean
+  #     minimum: 20
+  #
+  # `basis: daily_mean` spreads the month evenly and so UNDERSTATES festival
+  # days. `basis: festival_day_total` sizes against the festival-day share
+  # specifically. Neither is a peak-day figure; see docs/operations.md.
+  ratios: []
