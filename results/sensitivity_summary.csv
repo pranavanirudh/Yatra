@@ -1,0 +1,4 @@
+arm,windows,description,n_windows,shock_forecasts_per_model,rank_correlation,p_value,inverts
+declared,experiments\configs\shocks.yaml,"the owner's declared windows, as shipped",3,180,-0.38333333333333336,0.3084952723803716,True
+refined,experiments\configs\shocks_refined.yaml,"Boundaries redrawn against the observations: article_370 dropped (no monthly signal at the shrine), covid trimmed to 2021-08 (recovery completes in autumn 2021), floods_2025 extended to 2025-10.
+",2,144,-0.39999999999999997,0.286105101908313,True

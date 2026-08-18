@@ -1,0 +1,2 @@
+model,applicable,origins_total,origins_fittable,origins_failed,first_failure_origin,reason
+holt_winters_mul,False,362,292,70,2020-04,"ValueError: holt_winters_mul requires strictly positive observations; the training window contains a zero or negative month. This is a real limitation of multiplicative seasonality on a series with closures, and belongs in the results table as such."
