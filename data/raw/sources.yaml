@@ -1,0 +1,19 @@
+smvdsb_yatra_statistics_matrix:
+  publisher: Shri Mata Vaishno Devi Shrine Board
+  title: Yatra Statistics - month-wise break-up of Yatra from 1986
+  url: https://www.maavaishnodevi.org/yatrastatistics
+  accessed: '2026-08-18'
+  note: Month-wise matrix, twelve monthly columns plus a Total column. Figures are raw integer counts
+    as published; no unit conversion is applied. annual.csv uses this table's Total column, not the separate
+    annual summary given in lakh, because that summary is rounded to two decimals and cannot reconcile
+    exactly. April to July 2020 are published as zero (COVID-19 closure) and are recorded as zero, not
+    as missing.
+smvdsb_yatra_statistics_recent:
+  publisher: Shri Mata Vaishno Devi Shrine Board
+  title: Yatra Statistics - recent month-wise figures
+  url: https://www.maavaishnodevi.org/yatrastatistics
+  accessed: '2026-08-18'
+  note: Separate recent-months table on the same page, raw counts in Indian digit grouping. Used only
+    for months after the last complete year in the matrix. Months appearing in both tables were checked
+    to agree exactly before writing. These months belong to a year still in progress, so they have no
+    row in annual.csv and are deliberately outside the annual reconciliation check.
