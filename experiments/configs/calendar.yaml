@@ -1,0 +1,121 @@
+# Calendar layer.
+#
+# Festival dates are COMPUTED. There is no date table in src/ and adding one is
+# a spec violation (brief 3.6). The reference dates in tests/test_calendar.py
+# are validation against published almanacs, not a lookup the pipeline reads --
+# they are in the test suite precisely so that a drift in the computation fails
+# the build.
+
+schema_version: 1
+
+# Backend is declared, never discovered. ephemeris.py raises
+# EphemerisUnavailable if the named backend cannot load. It does not fall back.
+# See CLAUDE.md 3.6 and docs/ephemeris.md.
+#
+# swisseph would be the reference choice and stays implemented and selectable,
+# but pyswisseph is source-only on Windows and will not build on the machine
+# that generates results/. A backend that cannot run where the artefacts are
+# produced is not a backend. Decision recorded 2026-08-18 in docs/ephemeris.md.
+backend: skyfield
+
+ephemeris:
+  # JPL DE421: 1900-2050, which covers the observation window and any horizon
+  # past it. Fetched on demand; git-ignored, because it is a 16 MB binary
+  # reproducible from a stable public URL.
+  kernel_dir: data/ephemeris
+  kernel: de421.bsp
+  allow_download: true
+
+location:
+  # Bhawan (the shrine itself), not Katra. Sunrise differs by well under a
+  # minute between them, which cannot move a tithi boundary across a sunrise
+  # except in a near-tie -- but the near-tie is exactly the case that decides a
+  # contested festival date, so pin it rather than leave it implicit.
+  name: Shri Mata Vaishno Devi Bhawan
+  latitude: 33.0308
+  longitude: 74.9497
+  elevation_m: 1584
+  timezone: Asia/Kolkata
+
+ayanamsa: lahiri
+
+# Purnimanta: the lunar month ends at the full moon, so a dark fortnight carries
+# the name of the month that FOLLOWS it. This is the reckoning of the north,
+# including Jammu, and it is the one the festival rules below are written in --
+# Maha Shivaratri as Phalguna krishna, Diwali as Kartika krishna. The amanta
+# scheme of the west and south names those same two days Magha krishna and
+# Ashvina krishna. Same dates, different labels.
+#
+# This line used to read `amanta` while the rules below were written in
+# purnimanta terms, and nothing read the key at all, so the contradiction was
+# invisible. panchanga.py now reads it and translates krishna-paksha rules into
+# amanta internally, where the solver works. Getting this wrong moves Shivaratri
+# and Diwali by a full month while leaving every other festival correct, which
+# is precisely the plausible-but-wrong failure the project is built against.
+lunar_month_scheme: purnimanta
+
+# Span over which festivals are computed. Wider than the observation window on
+# both sides: the backtest needs calendar features past its last origin, and
+# festival resolution near an edge needs a complete lunar month around it.
+range:
+  start: 1985-01-01
+  end: 2030-12-31
+
+# A sankranti falling closer than this to a new moon decides a lunar month's
+# name -- and possibly an adhika month -- on a margin finer than the Lahiri
+# ayanamsa is defined to. panchanga.py raises rather than picking a side. See
+# _assert_no_near_tie.
+near_tie_tolerance_minutes: 15
+
+festivals:
+  # `observance` maps a tithi (an interval) onto a civil day (the thing a
+  # monthly feature can count). It is declared per festival because it genuinely
+  # differs by festival, and because it decides more dates than any plausible
+  # difference between ephemerides does:
+  #
+  #   sunrise   the day at whose sunrise the tithi is running. The majority
+  #             rule, and the default.
+  #   nishita   the day whose ritual midnight the tithi covers.
+  #   pradosha  the day whose post-sunset window the tithi covers.
+  - id: chaitra_navratri
+    label: Chaitra Navratri (day 1)
+    rule: { month: chaitra, paksha: shukla, tithi: 1, observance: sunrise }
+    duration_days: 9
+  - id: sharad_navratri
+    label: Sharad Navratri (day 1)
+    rule: { month: ashvina, paksha: shukla, tithi: 1, observance: sunrise }
+    duration_days: 9
+  - id: maha_shivaratri
+    label: Maha Shivaratri
+    # Nishita, not sunrise: Shivaratri is observed on the night the Chaturdashi
+    # covers ritual midnight, which is regularly the day BEFORE the one that
+    # holds Chaturdashi at sunrise.
+    rule: { month: phalguna, paksha: krishna, tithi: 14, observance: nishita }
+    duration_days: 1
+  - id: diwali
+    label: Diwali (Lakshmi Puja)
+    # Pradosha, not sunrise: Lakshmi Puja is performed after sunset, so Diwali
+    # falls on the day Amavasya covers the evening -- which in years like 2024
+    # is the day before Amavasya is running at sunrise.
+    rule: { month: kartika, paksha: krishna, tithi: 30, observance: pradosha }
+    duration_days: 1
+  - id: raksha_bandhan
+    label: Raksha Bandhan
+    rule: { month: shravana, paksha: shukla, tithi: 15, observance: sunrise }
+    duration_days: 1
+
+# Monthly features derived from the festival dates above. All are functions of
+# the calendar alone -- none of them touch the footfall series, so none can leak
+# a future observation into a forecast.
+features:
+  # Count of festival DAYS falling in the month. Navratri contributes up to 9,
+  # split across two months when it straddles a boundary.
+  - festival_days
+  # Sharad Navratri is the dominant driver at this shrine; give it its own
+  # column rather than letting it be averaged into a generic count.
+  - sharad_navratri_days
+  - is_navratri_month
+  # Yatra season is weather-bound as well as calendar-bound. Month-of-year is
+  # carried by the seasonal terms in the models themselves, so this layer adds
+  # only what month-of-year cannot express: the lunar drift.
+  - lunar_drift_days
