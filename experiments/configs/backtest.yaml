@@ -1,0 +1,114 @@
+# Rolling-origin backtest.
+#
+# Nothing numeric about the experiment lives in src/. If a number matters to a
+# result, it is here, and results/metrics.csv records the config hash that
+# produced it.
+
+schema_version: 1
+
+origins:
+  # First origin needs enough history for a seasonal model to have seen several
+  # cycles. 10 years of monthly data is the floor; below that Holt-Winters
+  # multiplicative initialisation is unstable in a way that is a property of the
+  # estimator, not of the shrine.
+  min_train_months: 120
+  # Origins step monthly. The last usable origin is (last observation - max
+  # horizon), so that every origin can be scored at every horizon. Any origin
+  # that cannot be scored at ALL horizons is dropped entirely rather than
+  # contributing a partial row -- see rectangularity below.
+  step_months: 1
+
+horizons: [1, 2, 3, 4, 5, 6]
+
+# Expanding window: training set grows as the origin advances. The alternative
+# (fixed-width rolling) discards the 1980s and 90s entirely by the end of the
+# series, which would make the early-period seasonal shape unavailable exactly
+# where the long-run trend information lives.
+window: expanding
+
+metrics:
+  # MASE denominator. Seasonal-naive in-sample MAE on the training window that
+  # ends at the origin, m=12. Computed once per origin and shared by every
+  # model, so per-regime tables stay comparable. See CLAUDE.md 3.2.
+  mase_seasonality: 12
+  report: [mase, mae, rmse, smape]
+
+# Rectangularity is the point of this block. Every model must produce a
+# forecast for every (origin, horizon) cell, or the panel is ragged and the
+# regime-split comparison is between different origin sets -- which is not a
+# comparison at all.
+#
+# on_model_failure: fail
+#   A model that errors on one origin aborts the run, naming the model and the
+#   origin. It does NOT get dropped from that origin and averaged over the rest.
+#   Holt-Winters multiplicative will genuinely fail on a window containing a
+#   zero, and that is information: it belongs in the README as a reported
+#   limitation, not swallowed by a try/except.
+rectangular: true
+on_model_failure: fail
+
+models:
+  - naive
+  - seasonal_naive
+  - drift
+  - theta
+  - holt_winters_add
+  # holt_winters_mul is EXCLUDED, and this is a finding rather than a tidy-up.
+  #
+  # April-July 2020 are published as zero: the shrine was closed. Multiplicative
+  # seasonality is undefined on a window containing a zero, so from the 2020-04
+  # origin onward the estimator raises -- 70 of 362 origins, every one of them
+  # after the closure.
+  #
+  # The three ways to keep it are all worse. Leaving it in aborts the whole run
+  # (on_model_failure: fail, and rightly so). Scoring it only on the 292 origins
+  # it survives is a ragged panel: it would be compared against models scored on
+  # a different, easier stretch of history, which is not a comparison at all.
+  # Relaxing on_model_failure re-opens exactly that. Nudging the zeros upward
+  # would fabricate observations.
+  #
+  # So it is excluded and said out loud. That a standard seasonal method cannot
+  # be fit at all once a closure enters the training window is itself a result
+  # about forecasting through shocks, and it belongs in the README as one.
+  # - holt_winters_mul
+  - sarima
+  - sarimax_cal
+  # Regime-switching. Its break detector reads the training window and
+  # nothing else -- never the declared shock windows, which are evaluation
+  # labels. Its no-break branch is byte-identical to holt_winters_add, so
+  # the gap between those two columns isolates the switch itself.
+  - switching
+  # Same entry rule as `switching`, held for six months before it may release.
+  # Present so the EXIT rule is scored rather than assumed: entering fast is
+  # clearly right, but naive-like behaviour is badly wrong during a recovery,
+  # and the two arms differ only in how long they stay switched.
+  - switching_sticky
+
+seed: 20260818
+
+# Block bootstrap over the origin set. See src/yatra/bootstrap.py for why the
+# resampling unit is the origin and why the blocks are contiguous.
+bootstrap:
+  n_resamples: 2000
+  # Block length in origins. With monthly origins over expanding windows,
+  # neighbouring origins share nearly all their training data and their errors
+  # run in streaks; 12 keeps a year of that dependence intact inside each block.
+  block_origins: 12
+  confidence: 0.95
+  metric: mase
+  seed: 20260818
+
+# Sensitivity of the headline finding to where the shock boundary is drawn.
+#
+# The primary arm (shocks.yaml) is always included and always first. Each arm
+# below re-scores the SAME forecasts under a different window definition --
+# cheap, because regimes are labels and never model inputs. See
+# src/yatra/sensitivity.py.
+sensitivity:
+  arms:
+    - name: refined
+      shocks: experiments/configs/shocks_refined.yaml
+      description: >
+        Boundaries redrawn against the observations: article_370 dropped (no
+        monthly signal at the shrine), covid trimmed to 2021-08 (recovery
+        completes in autumn 2021), floods_2025 extended to 2025-10.
