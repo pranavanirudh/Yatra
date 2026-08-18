@@ -1,0 +1,52 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "yatra"
+version = "0.1.0"
+description = "Regime-separated forecasting of pilgrimage footfall at Shri Mata Vaishno Devi."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Pranav Anirudh M" }]
+
+# Ranges are capped at the next major deliberately. An unbounded floor makes the
+# resolved environment a function of the date you ran pip, which means two
+# machines on one repo can disagree about a MASE in the fourth decimal and
+# nobody can reproduce the run that produced results/metrics.csv. Bump a cap on
+# purpose, re-run `make all`, and check the metrics diff.
+dependencies = [
+    "numpy>=1.26,<3",
+    "pandas>=2.2,<3",
+    # Holt-Winters (ExponentialSmoothing) and SARIMA(X) both come from here.
+    # These are the estimators the headline finding is about, so the cap is
+    # load-bearing: statsmodels has changed ETS initialisation defaults across
+    # minors before, which silently moves every clean-month number.
+    "statsmodels>=0.14,<1",
+    # Spearman rank correlation for the clean-vs-shock inversion statistic.
+    "scipy>=1.11,<2",
+    "PyYAML>=6.0,<7",
+    "matplotlib>=3.8,<4",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0,<9"]
+
+# The ephemeris backend is an extra rather than a hard dependency because
+# pyswisseph is source-only on Windows and needs an MSVC toolchain. See
+# docs/ephemeris.md -- src/yatra/ephemeris.py refuses to fall back silently.
+swisseph = ["pyswisseph>=2.10,<3"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/yatra"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+# Calendar tests are the ones whose failure invalidates every ablation result,
+# so they are marked and run first in `make test`.
+markers = [
+    "calendar: festival-date computation validated against published almanacs",
+    "needs_data: requires the observation files under data/raw/",
+]

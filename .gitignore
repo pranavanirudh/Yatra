@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Ephemeris kernels are large binaries fetched once and cached. They are inputs
+# to the calendar layer, not products of it.
+data/ephemeris/*.bsp
+data/ephemeris/*.se1
+data/ephemeris/*.part
+
+# results/ IS committed. metrics.csv is the artefact every README number has to
+# trace back to, so it belongs in history -- if it is not in the repo, a claim
+# in the README cannot be checked against the run that produced it.
+!results/
