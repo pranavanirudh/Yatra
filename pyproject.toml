@@ -28,6 +28,13 @@ dependencies = [
     "scipy>=1.11,<2",
     "PyYAML>=6.0,<7",
     "matplotlib>=3.8,<4",
+    # The ephemeris backend named in experiments/configs/calendar.yaml. It is a
+    # HARD dependency, unlike the swisseph extra below, because it is the
+    # backend that produced every committed artefact and the one the calendar
+    # tests validate against published almanacs. ephemeris.py refuses to fall
+    # back to another backend, so without this the calendar stage -- and
+    # therefore `make all` -- stops at EphemerisUnavailable.
+    "skyfield>=1.45,<2",
 ]
 
 [project.optional-dependencies]

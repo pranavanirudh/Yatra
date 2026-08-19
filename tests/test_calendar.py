@@ -457,3 +457,29 @@ def test_calendar_features_never_read_observations():
             "functions of the calendar alone -- that is what makes it legitimate "
             "for sarimax_cal to see future rows of them."
         )
+
+
+@pytest.mark.calendar
+def test_the_configured_backend_is_a_declared_dependency():
+    """The backend calendar.yaml names must be installable from pyproject alone.
+
+    It was not. `skyfield` is the declared backend and appeared in no
+    dependency list, so it was present only where somebody had installed it by
+    hand. A fresh clone following the README got as far as the calendar stage
+    and stopped at EphemerisUnavailable -- an environment failure wearing the
+    costume of a configuration error.
+
+    Read from the config rather than hardcoded, so declaring a different
+    backend without packaging it fails here instead of on someone else's
+    machine.
+    """
+    config = yaml.safe_load(
+        Path("experiments/configs/calendar.yaml").read_text(encoding="utf-8"))
+    backend = str(config["backend"])
+    pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
+
+    assert backend in pyproject, (
+        f"calendar.yaml declares backend '{backend}', which appears nowhere in "
+        "pyproject.toml. The pipeline would install cleanly and then fail at "
+        "the calendar stage on any machine that did not already have it."
+    )
