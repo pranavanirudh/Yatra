@@ -46,17 +46,32 @@ any: the results section is written by `src/yatra/report.py` directly from
 
 ## Running it
 
+The observations are in the repository, so this runs as-is:
+
 ```bash
 python -m venv .venv
-.venv/Scripts/python.exe -m pip install -e ".[dev]"
 
-# One-time: get your figures into the shape the contract expects.
-python make.py ingest --inspect path/to/your-figures.csv   # describes the file
-#   ... edit experiments/configs/ingest.yaml from the template it prints ...
-python make.py ingest                                      # writes data/raw/
+# Windows
+.venv/Scripts/python.exe -m pip install -e ".[dev]"
+# macOS / Linux
+.venv/bin/python -m pip install -e ".[dev]"
 
 python make.py all      # or `make all` where make exists
 ```
+
+`make.py` re-executes itself inside `.venv`, so `python make.py` is enough once
+the environment exists — it does not matter which interpreter you invoke it
+with. The minimum Python version is declared in `pyproject.toml`.
+
+Two things are fetched or built rather than committed. The virtual environment
+is yours to create, above. The ephemeris kernel is downloaded on demand the
+first time the calendar stage runs — it is a large binary reproducible from a
+stable public URL, so it is git-ignored rather than stored. That download is the
+only step that needs network access; everything else runs offline.
+
+Bringing your own observations is a separate path, and is described under
+[Getting your data in](#getting-your-data-in) below. You do not need it to run
+what is here.
 
 `all` runs `validate`, `calendar`, `backtest`, `relabel`, `bootstrap`,
 `applicability`, `sensitivity`, `figures`, `report`, `operations`, `test`, in
@@ -71,6 +86,10 @@ citation.
 
 ### Getting your data in
 
+This is only needed to bring in a **different** dataset — a longer series, a
+correction from the publisher, or another site. The observations this project
+reports on are already in `data/raw/`, and running ingest would overwrite them.
+
 `make ingest --inspect <file>` reads a CSV or spreadsheet, shows you what is in
 it, and prints a config template with the columns pre-filled. You edit the
 template — in particular declaring the **unit**, since figures for this shrine
@@ -84,8 +103,16 @@ names the missing months.
 
 ## Data
 
-The observations are not in this repository. They are owner-supplied, and the
-schema they must satisfy is in [docs/data_schema.md](docs/data_schema.md).
+The observations are in this repository, under `data/raw/`. They are
+owner-supplied, transcribed from the shrine board's published month-wise
+figures, and every row carries the source id it came from; the schema they
+satisfy is in [docs/data_schema.md](docs/data_schema.md). The closure months of
+2020 are recorded as observed zeros, not as missing values, because that is what
+the publisher reports.
+
+They are written only by `make ingest`, which is not part of `make all`. Nothing
+in the pipeline writes to `data/raw/`, so the observation set cannot change
+underneath a run that is scoring against it.
 
 This project does not generate, simulate, or impute observations — not to fill a
 gap, and not to exercise the pipeline. The loader has no default, no bundled
