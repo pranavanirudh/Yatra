@@ -217,13 +217,15 @@ table with its number.
 
 | Regime | Forecasts | Per model |
 |---|---:|---:|
-| clean | 17,928 | 1,992 |
-| shock | 1,620 | 180 |
+| clean | 18,090 | 2,010 |
+| shock | 1,458 | 162 |
 
 | Shock window | Forecasts | Per model |
 |---|---:|---:|
-| article_370 | 162 | 18 |
-| covid | 1,188 | 132 |
+| covid_closure | 432 | 48 |
+| covid_recovery_post_delta | 324 | 36 |
+| covid_recovery_pre_delta | 270 | 30 |
+| delta_wave | 162 | 18 |
 | floods_2025 | 270 | 30 |
 
 ### Mean MASE by regime
@@ -232,33 +234,33 @@ Lower is better. Rank is within the column. Every model is scored on an identica
 
 | Model | Clean MASE | Rank | Shock MASE | Rank | Rank change |
 |---|---:|---:|---:|---:|---:|
-| `sarimax_cal` | 1.359 | 1 | 4.234 | 4 | +3 |
-| `sarima` | 1.376 | 2 | 4.196 | 3 | +1 |
-| `holt_winters_add` | 1.436 | 3 | 5.467 | 9 | +6 |
-| `switching` | 1.440 | 4 | 5.370 | 8 | +4 |
-| `switching_sticky` | 1.522 | 5 | 5.151 | 6 | +1 |
-| `seasonal_naive` | 1.529 | 6 | 5.207 | 7 | +1 |
-| `theta` | 1.969 | 7 | 4.421 | 5 | -2 |
-| `naive` | 4.167 | 8 | 3.103 | 1 | -7 |
-| `drift` | 4.209 | 9 | 3.119 | 2 | -7 |
+| `sarimax_cal` | 1.354 | 1 | 4.616 | 4 | +3 |
+| `sarima` | 1.372 | 2 | 4.562 | 3 | +1 |
+| `holt_winters_add` | 1.431 | 3 | 5.979 | 9 | +6 |
+| `switching` | 1.435 | 4 | 5.870 | 8 | +4 |
+| `switching_sticky` | 1.516 | 5 | 5.624 | 6 | +1 |
+| `seasonal_naive` | 1.520 | 6 | 5.724 | 7 | +1 |
+| `theta` | 1.964 | 7 | 4.760 | 5 | -2 |
+| `naive` | 4.155 | 8 | 3.133 | 1 | -7 |
+| `drift` | 4.197 | 9 | 3.147 | 2 | -7 |
 
 ### The inversion
 
 - Best on clean months: `sarimax_cal` — ranks 4 of 9 during shocks.
 - Best on shock months: `naive` — ranks 8 of 9 on clean months.
 
-Across **2,000 block-bootstrap resamples** of the origin set, the clean-month and shock-month rankings came out inverted in **90.4%** of them.
+Across **2,000 block-bootstrap resamples** of the origin set, the clean-month and shock-month rankings came out inverted in **95.8%** of them.
 
 A rank correlation over every model is a blunt summary. These are the substitutions someone would actually make, and the share of resamples in which each one pays:
 
 | Comparison | Regime | Share of resamples |
 |---|---|---:|
-| `naive` beats `sarimax_cal` | shock | 90.3% |
-| `naive` beats `sarima` | shock | 90.2% |
-| `naive` beats `holt_winters_add` | shock | 93.4% |
+| `naive` beats `sarimax_cal` | shock | 96.1% |
+| `naive` beats `sarima` | shock | 96.0% |
+| `naive` beats `holt_winters_add` | shock | 96.8% |
 | `sarimax_cal` beats `naive` | clean | 100.0% |
 
-The Spearman correlation between the two rankings is **-0.383**, with a 95% interval of [-0.717, +0.783]. That interval spans zero, so on the conventional threshold the rank correlation on its own would not be called significant.
+The Spearman correlation between the two rankings is **-0.383**, with a 95% interval of [-0.717, +0.550]. That interval spans zero, so on the conventional threshold the rank correlation on its own would not be called significant.
 
 That threshold is answering a harder question than the one being asked. Rho tests whether the *whole* ordering of every model reverses, and it has only the disrupted months in the record to estimate a full permutation from — so its interval is wide by construction. The pairwise proportions above test the claims anyone would act on, and are correspondingly sharper on the same evidence. Both are reported; they are not in conflict, they are different questions.
 
@@ -268,7 +270,7 @@ The shock windows are drawn by hand. Below, the *same* forecasts are re-scored u
 
 | Window set | Windows | Shock forecasts per model | Rank correlation | Inverts |
 |---|---:|---:|---:|---|
-| `declared` — the owner's declared windows, as shipped | 3 | 180 | -0.383 | yes |
+| `declared` — the owner's declared windows, as shipped | 5 | 162 | -0.383 | yes |
 | `refined` — Boundaries redrawn against the observations: article_370 dropped (no monthly signal at the shrine), covid trimmed to 2021-08 (recovery completes in autumn 2021), floods_2025 extended to 2025-10. | 2 | 144 | -0.400 | yes |
 
 The rank correlation is negative under **2 of 2** window definitions. The inversion is not an artefact of where the boundaries were drawn.
@@ -284,7 +286,7 @@ The leaderboard above pools h=1 through h=6. A planner reading the briefing is r
 
 | Horizon | Best on clean | Its shock rank | Best on shock | Its clean rank | Rank correlation |
 |---:|---|---:|---|---:|---:|
-| h=1 | `sarimax_cal` | 4 of 9 | `naive` | 8 of 9 | -0.367 |
+| h=1 | `sarimax_cal` | 5 of 9 | `naive` | 8 of 9 | -0.367 |
 | h=2 | `sarimax_cal` | 5 of 9 | `naive` | 8 of 9 | -0.483 |
 | h=3 | `sarimax_cal` | 4 of 9 | `naive` | 8 of 9 | -0.383 |
 | h=4 | `sarimax_cal` | 4 of 9 | `naive` | 8 of 9 | -0.383 |
@@ -299,14 +301,14 @@ The leaderboard says which model won; it does not say what any one decision boug
 
 | Comparison | What varies | Regime | With | Without | Difference | With it better in |
 |---|---|---|---:|---:|---:|---:|
-| `sarimax_cal` vs `sarima` | festival calendar features | clean | 1.359 | 1.376 | -0.017 | 83.6% |
-|  |  | shock | 4.234 | 4.196 | +0.038 | 18.6% |
-| `switching` vs `holt_winters_add` | whether the model switches at a detected break | clean | 1.440 | 1.436 | +0.005 | 35.8% |
-|  |  | shock | 5.370 | 5.467 | -0.097 | 65.6% |
-| `switching_sticky` vs `switching` | how long the switched regime is held before release | clean | 1.522 | 1.440 | +0.082 | 0.7% |
-|  |  | shock | 5.151 | 5.370 | -0.219 | 90.4% |
+| `sarimax_cal` vs `sarima` | festival calendar features | clean | 1.354 | 1.372 | -0.018 | 85.0% |
+|  |  | shock | 4.616 | 4.562 | +0.053 | 7.6% |
+| `switching` vs `holt_winters_add` | whether the model switches at a detected break | clean | 1.435 | 1.431 | +0.005 | 35.7% |
+|  |  | shock | 5.870 | 5.979 | -0.109 | 66.0% |
+| `switching_sticky` vs `switching` | how long the switched regime is held before release | clean | 1.516 | 1.435 | +0.081 | 0.7% |
+|  |  | shock | 5.624 | 5.870 | -0.246 | 90.3% |
 
-Lower MASE is better, so a **negative** difference means the choice helped. The last column is the share of block-bootstrap resamples in which it helped, which is what carries the claim — a difference in the third decimal is not a result on its own. Every arm is scored on the same 1,992 clean and **180 shock** forecasts, and the shock column is the thin one: read every difference in it against that number.
+Lower MASE is better, so a **negative** difference means the choice helped. The last column is the share of block-bootstrap resamples in which it helped, which is what carries the claim — a difference in the third decimal is not a result on its own. Every arm is scored on the same 2,010 clean and **162 shock** forecasts, and the shock column is the thin one: read every difference in it against that number.
 
 - **Festival calendar features** — the sign flips between regimes — better on clean months, worse on shock ones.
 - **Whether the model switches at a detected break** — the sign flips between regimes — better on shock months, worse on clean ones.
@@ -316,7 +318,7 @@ Every one of these choices trades one regime against the other. That is the head
 
 The calendar pair is worth reading twice, because the calendar layer is this project's largest single investment. A festival regressor asserts a surge on a date the ephemeris computed, and a closure or a flood does not move that date — the feature goes on predicting an arrival pattern that policy or the weather has cancelled. The sign above is consistent with that.
 
-**It is an observation, not a basis to build on.** It is one pair of models on 180 shock forecasts from a single shrine, and it is not among the comparisons that clear the declared level below. The obvious thing to do with it — route calendar features by regime, so the model drops them once it thinks it is in a shock — has deliberately not been built. Doing so would fit a mechanism to a difference this record cannot resolve, and the resulting model would then be scored on the same disrupted months that suggested it. What would justify building it is more disrupted months, from a site whose disruptions are not these ones.
+**It is an observation, not a basis to build on.** It is one pair of models on 162 shock forecasts from a single shrine, and it is not among the comparisons that clear the declared level below. The obvious thing to do with it — route calendar features by regime, so the model drops them once it thinks it is in a shock — has deliberately not been built. Doing so would fit a mechanism to a difference this record cannot resolve, and the resulting model would then be scored on the same disrupted months that suggested it. What would justify building it is more disrupted months, from a site whose disruptions are not these ones.
 
 Of the 6 pair-and-regime comparisons above, **1** clears the bootstrap's declared 95% level in one direction or the other. The rest are directional and unresolved by this record, and are reported as such rather than as findings.
 
@@ -361,7 +363,7 @@ It was not quietly replaced with the additive variant. Doing so would put a numb
 
 ### Caveat: unverified shock windows
 
-3 of 3 declared shock windows carry citations that the project owner has not yet checked against the source: `article_370`, `covid`, `floods_2025`. The dates were drafted from public reporting. Until they are verified, the regime split — and therefore every number above — rests on an unaudited boundary.
+5 of 5 declared shock windows carry citations that the project owner has not yet checked against the source: `covid_closure`, `covid_recovery_pre_delta`, `delta_wave`, `covid_recovery_post_delta`, `floods_2025`. The dates were drafted from public reporting. Until they are verified, the regime split — and therefore every number above — rests on an unaudited boundary.
 
 <!-- END GENERATED -->
 

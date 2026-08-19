@@ -11,113 +11,244 @@
 # about which months were disrupted, and the whole finding is a comparison
 # between the two sides of that line.
 #
-# STATUS 2026-08-18: drafted by Claude from public reporting, NOT yet verified
-# by the project owner against the shrine board's own records. The `verified`
-# flag below is false for all three. regimes.py accepts unverified windows but
-# report.py stamps the README with a warning while any remain false. Flip them
-# only after reading the cited source.
+# STATUS 2026-08-19: audited by the project owner. `article_370` was withdrawn
+# (see the rejected-candidate block below), the COVID block was split into its
+# closure, delta and recovery phases, and the citations for the surviving
+# windows were replaced with owner-supplied ones.
+#
+# `verified` remains false on every window. The owner supplied the citations
+# below but has not recorded having read each source against the dates, and
+# this flag means precisely that check and nothing looser. While any window is
+# false, report.py stamps the README with the unaudited-boundary caveat.
+#
+# ---------------------------------------------------------------------------
+# REJECTED CANDIDATE: article_370 (was 2019-08..2019-10)
+# ---------------------------------------------------------------------------
+# Withdrawn 2026-08-19. A rejected candidate is kept here rather than deleted,
+# because the set of windows somebody considered and declined is part of the
+# audit trail: without it, a later reader cannot tell a window that was never
+# thought of from one that was examined and failed.
+#
+# The claim was that the abrogation of Article 370 on 5 August 2019, and the
+# communications lockdown and travel advisories that followed, disrupted the
+# yatra through the autumn. The monthly series does not support it:
+#
+#     2019-08   602,088  vs  2018-08   690,646   = -12.8%
+#     2019-09   656,167  vs  2018-09   680,373   =  -3.6%
+#     2019-10   796,087  vs  2018-10   799,596   =  -0.4%
+#
+# The dip fades to nothing within two months. Set against the months in this
+# file that are unambiguously disrupted -- 2020-04 at -100%, 2021-05 at -94%
+# year-on-year, 2025-09 at -73% -- it is ordinary year-to-year variation.
+#
+# Declaring it would have been inferring a shock from the TIMING of a political
+# event rather than from observed disruption in the series. That inference is
+# exactly what the declared-window design exists to prevent: a window drawn
+# because something newsworthy happened nearby, rather than because the
+# observations moved, puts ordinary months in the shock bucket and flatters
+# whichever model happens to do well on them.
+#
+# The 2019 annual total (79.40 lakh, against 85.87 lakh in 2018) is a real
+# decline, but it is a 7.5% annual movement with no month behaving unusually,
+# and the regime split is monthly.
+#
+# Consequence for the record: 18 forecasts per model move from shock to clean.
 
 schema_version: 1
 
 windows:
-  - id: article_370
-    label: "Article 370 abrogation and J&K communications lockdown"
-    start: 2019-08
-    end: 2019-10
+  # --- COVID, split into three phases ------------------------------------
+  #
+  # Previously one 22-month window (2020-03..2021-12). One block that long
+  # smears a total closure, a second-wave collapse and a slow recovery into a
+  # single average, and the interesting comparison is between them: a model
+  # that copes with a cliff is not necessarily one that copes with a climb.
+  #
+  # All four windows below are DECLARED, so every month in 2020-03..2021-12 is
+  # still labelled `shock` exactly as before. The split changes the per-window
+  # breakdown, not the clean/shock partition. The total shock count is
+  # unchanged by this split; only the article_370 withdrawal moves months.
+  #
+  # NOTE ON THE SPLIT INTO FOUR: the recovery is declared as two windows, not
+  # one, because `delta_wave` falls inside it and regimes.py raises on
+  # overlapping windows (they would double-count months in the per-window
+  # table). A window is a contiguous range, so a recovery interrupted by a
+  # second shock is two ranges. The alternative -- one recovery window
+  # swallowing the delta collapse -- is the smearing this split exists to undo.
+
+  - id: covid_closure
+    label: "COVID-19 total closure and capped reopening"
+    start: 2020-03
+    end: 2020-10
     verified: false
     rationale: >
-      Special status revoked 5 August 2019, accompanied by movement
-      restrictions, a suspended communications network and a standing advisory
-      against non-essential travel to the union territory. Yatra registration
-      was not formally closed, but access to Katra and onward travel was
-      materially constrained through the autumn. Annual footfall fell to
-      79.40 lakh in 2019 from 85.87 lakh in 2018.
+      Yatra suspended 18 March 2020. The shrine was closed for five months and
+      reopened to pilgrims on 16 August 2020, initially under a cap of 2,000
+      per day of whom only 100 could come from outside J&K -- roughly two
+      orders of magnitude below normal throughput, so the reopening does not
+      end the shock.
+
+      The published monthly figures record exactly 0 yatris for April, May,
+      June and July 2020. These are the only zero months in the entire
+      1986-2026 series, and they are recorded as observed zeros rather than as
+      missing data. The annual total fell to 17.20 lakh, the lowest in over
+      three decades.
+
+      The window ends at 2020-10, the last month before the count re-enters
+      six figures on a sustained basis (2020-10: 121,661; 2020-11: 103,749;
+      2020-12: 207,533). Recovery from that point is a different regime and is
+      declared separately below.
     source:
-      publisher: Deccan Herald
-      title: "Tourism in Kashmir region hit hard after Article 370 revocation"
-      url: https://www.deccanherald.com/national/north-and-central/tourism-in-kashmir-region-hit-hard-after-article-370-revocation-946673.html
-      accessed: 2026-08-18
+      publisher: Kashmir Observer
+      title: "Pilgrim Numbers Decline at Vaishno Devi Due to Security, Weather Issues (published 29 Dec 2025)"
+      url: https://kashmirobserver.net/2025/12/29/pilgrim-numbers-decline-at-vaishno-devi-due-to-security-weather-issues/
+      accessed: 2026-08-19
     corroborating_source:
-      publisher: The Tribune
-      title: "Vaishno Devi records steep decline in visitors this year"
-      url: https://www.tribuneindia.com/news/j-k/vaishno-devi-records-steep-decline-in-visitors-this-year/
+      publisher: Shri Mata Vaishno Devi Shrine Board
+      title: "Yatra Statistics - month-wise break-up of Yatra from 1986"
+      url: https://www.maavaishnodevi.org/yatrastatistics
       accessed: 2026-08-18
 
-  - id: covid
-    label: "COVID-19 closure and capped reopening"
-    start: 2020-03
+  - id: covid_recovery_pre_delta
+    label: "COVID-19 recovery, first phase (pre-delta)"
+    start: 2020-11
+    end: 2021-03
+    verified: false
+    rationale: >
+      Caps relaxed in stages and volumes climbed back from about 5% of a
+      normal month to about 60% (2021-03: 525,198). Still declared as a shock
+      window: a month running at well under normal throughput under an
+      administrative ceiling is not an ordinary month, and scoring it as clean
+      would put a recovering series into the baseline the clean leaderboard is
+      measured on.
+
+      Held apart from the closure because the forecasting problem is the
+      opposite one. The closure is a cliff, and a model is judged on how fast
+      it stops predicting normality. The recovery is a climb, and a model is
+      judged on whether it follows the climb or keeps predicting the floor.
+    source:
+      publisher: Kashmir Observer
+      title: "Pilgrim Numbers Decline at Vaishno Devi Due to Security, Weather Issues (published 29 Dec 2025)"
+      url: https://kashmirobserver.net/2025/12/29/pilgrim-numbers-decline-at-vaishno-devi-due-to-security-weather-issues/
+      accessed: 2026-08-19
+    corroborating_source:
+      publisher: Shri Mata Vaishno Devi Shrine Board
+      title: "Yatra Statistics - month-wise break-up of Yatra from 1986"
+      url: https://www.maavaishnodevi.org/yatrastatistics
+      accessed: 2026-08-18
+
+  - id: delta_wave
+    label: "COVID-19 second (delta) wave"
+    start: 2021-04
+    end: 2021-06
+    verified: false
+    rationale: >
+      The second wave collapsed the recovery. May 2021 recorded 45,155
+      pilgrims, a fall of 86.0% month-on-month from April's 321,735, in a month
+      that is ordinarily among the year's busiest. June recovered only to
+      198,490 before the climb resumed in July (500,671).
+
+      Declared separately rather than folded into the recovery because it is a
+      distinct disruption with its own cause and its own shape -- a second
+      cliff inside what was otherwise a climb. A single recovery window
+      spanning 2020-11..2021-12 would average this collapse against the months
+      either side of it and report neither.
+    source:
+      publisher: Kashmir Observer
+      title: "Pilgrim Numbers Decline at Vaishno Devi Due to Security, Weather Issues (published 29 Dec 2025)"
+      url: https://kashmirobserver.net/2025/12/29/pilgrim-numbers-decline-at-vaishno-devi-due-to-security-weather-issues/
+      accessed: 2026-08-19
+    corroborating_source:
+      publisher: Shri Mata Vaishno Devi Shrine Board
+      title: "Yatra Statistics - month-wise break-up of Yatra from 1986"
+      url: https://www.maavaishnodevi.org/yatrastatistics
+      accessed: 2026-08-18
+
+  - id: covid_recovery_post_delta
+    label: "COVID-19 recovery, second phase (post-delta)"
+    start: 2021-07
     end: 2021-12
     verified: false
     rationale: >
-      Yatra suspended 18 March 2020. Reopened 16 August 2020 under a cap of
-      2,000 pilgrims per day, of whom only 100 could come from outside J&K --
-      a ceiling roughly two orders of magnitude below normal throughput, so the
-      reopening does not end the shock. The window is held open through 2021 to
-      cover the second wave and the staged relaxation of the cap. Annual
-      footfall was 17 lakh in 2020.
-      The end date is the most arguable choice in this file: recovery was
-      gradual and no single month marks a return to baseline. Sensitivity to
-      this boundary is worth reporting explicitly.
+      The climb resumed after the delta wave and continued through the end of
+      2021 (2021-07: 500,671; 2021-12: 638,207), still short of the pre-2020
+      level for the same months.
+
+      The end date is the most arguable boundary in this file: recovery was
+      gradual and no single month marks a return to baseline. That is why
+      `shocks_refined.yaml` moves it, and why the sensitivity arm exists.
     source:
-      publisher: The Tribune
-      title: "COVID-19: Vaishno Devi Yatra to resume as J&K to open religious places from August 16"
-      url: https://www.tribuneindia.com/news/j-k/covid-19-vaishno-devi-yatra-to-resume-as-jk-to-open-religious-places-from-august-16-122088
-      accessed: 2026-08-18
+      publisher: Kashmir Observer
+      title: "Pilgrim Numbers Decline at Vaishno Devi Due to Security, Weather Issues (published 29 Dec 2025)"
+      url: https://kashmirobserver.net/2025/12/29/pilgrim-numbers-decline-at-vaishno-devi-due-to-security-weather-issues/
+      accessed: 2026-08-19
     corroborating_source:
-      publisher: The Tribune
-      title: "J&K suspends Vaishno Devi yatra, bans inter-state buses"
-      url: https://www.tribuneindia.com/news/jk-suspends-vaishno-devi-yatra-bans-inter-state-buses-57618
+      publisher: Shri Mata Vaishno Devi Shrine Board
+      title: "Yatra Statistics - month-wise break-up of Yatra from 1986"
+      url: https://www.maavaishnodevi.org/yatrastatistics
       accessed: 2026-08-18
 
+  # --- 2025 compound disruption ------------------------------------------
+
   - id: floods_2025
-    # NOTE ON THE ID: it now understates the window. This is a COMPOUND
-    # disruption -- a security shock from May, then a landslide closure from
-    # late August -- and `floods_2025` names only the second half. The id is
-    # kept because it already appears in results/metrics.csv and in published
-    # tables; renaming it is a separate, deliberate change. The label and the
-    # rationale below carry the actual cause.
+    # NOTE ON THE ID: it understates the window. This is a COMPOUND disruption
+    # -- a security shock from May, then a landslide closure from late August
+    # -- and `floods_2025` names only the second half. The id is kept because
+    # it already appears in results/metrics.csv and in published tables;
+    # renaming it is a separate, deliberate change. The label and the rationale
+    # carry the actual cause.
     label: "J&K security shock and monsoon landslide closure (compound)"
     start: 2025-05
     end: 2025-09
     verified: false
     rationale: >
-      Originally declared 2025-08..2025-09 and anchored on the landslide alone.
-      That start date was wrong: it began at the second of two causes, so the
-      deeper first one was scored as an ordinary month.
+      Compound disruption, and the window is anchored on the FIRST of its two
+      causes. It was originally declared 2025-08..2025-09, anchored on the
+      landslide alone; that start was wrong, because it began at the second
+      cause and scored the deeper first one as an ordinary month.
 
-      Two distinct events suppressed the yatra in 2025.
-
-      First, security. The Pahalgam attack of 22 April 2025 killed 26 people,
-      and Operation Sindoor in May brought border tension. Regional religious
-      tourism fell immediately: May 2025 recorded 413,365 pilgrims against
-      1,164,301 in May 2024, a fall of 750,936 or 64.5%. June recovered to
-      926,263 once a sense of security returned, so the security shock is
+      First, security. The Pahalgam attack and Operation Sindoor suppressed
+      regional religious tourism from May 2025. May 2025 recorded 413,365
+      pilgrims against 1,164,301 in May 2024, a fall of 64.5%. June recovered
+      to 926,263 once a sense of security returned, so the security shock is
       concentrated in May rather than sustained.
 
-      Second, the track. A landslide at Ardhkuwari on 26 August 2025, triggered
-      by heavy rain, killed 35 pilgrims, damaged the route and forced a closure
-      of about three weeks in what is normally a high-traffic period. September
-      2025 fell to 185,165, its lowest non-COVID value in the record.
+      Second, the track. The Ardhkuwari landslide of 26 August 2025 killed 34
+      pilgrims and suspended the yatra for close to three weeks in what is
+      normally a high-traffic period. September 2025 recorded 185,165 against
+      678,487 in September 2024, a fall of 73%, in the Navratri month -- its
+      lowest non-COVID value in the record.
 
-      Both are included because both suppressed the same series in the same
-      year, and a window covering only the landslide would put the larger
-      absolute fall in the clean bucket. May's year-on-year drop (750,936) is
-      larger in absolute terms than September's (493,322), though September's is
-      the larger proportional fall.
+      The annual total was 69.79 lakh, down 26.4% from 94.84 lakh in 2024.
 
-      June and July sit inside the window at 79% and 88% of the 2015-2018
-      same-month mean. They are neither clearly disrupted nor clearly normal,
-      and holding the window continuous across them is the arguable part of this
-      declaration. `shocks_refined.yaml` is where that boundary is tested.
+      Both causes are inside one window because both suppressed the same series
+      in the same year, and a window covering only the landslide would put the
+      larger absolute fall in the clean bucket. June and July sit inside the
+      window at 79% and 88% of the 2015-2018 same-month mean: neither clearly
+      disrupted nor clearly normal, and holding the window continuous across
+      them is the arguable part of this declaration.
+      `shocks_refined.yaml` is where that boundary is tested.
+
+      UNRESOLVED, for the owner: the landslide death toll is recorded as 34 in
+      the owner-supplied citation and as 35 in the reporting the previous
+      rationale drew on. Nothing in this project depends on the figure -- it
+      appears in no computation -- but it should be settled against the source
+      before the window is marked verified.
+      CITATION NOT YET CARRIED: the owner also named "Daily Pioneer,
+      15 Dec 2025" as a source for this window. No URL for it is on record, and
+      a citation requires one -- so it is named here in the rationale rather
+      than written into the `source` block below with a URL nobody has checked.
+      Supply the URL and it becomes the primary citation; inventing a plausible
+      one would defeat the purpose of requiring citations at all.
     source:
-      publisher: Press Trust of India (via Kashmir Observer)
-      title: "Pilgrim Numbers Decline at Vaishno Devi Due to Security, Weather Issues"
+      publisher: Kashmir Observer
+      title: "Pilgrim Numbers Decline at Vaishno Devi Due to Security, Weather Issues (published 29 Dec 2025)"
       url: https://kashmirobserver.net/2025/12/29/pilgrim-numbers-decline-at-vaishno-devi-due-to-security-weather-issues/
-      accessed: 2026-08-18
+      accessed: 2026-08-19
     corroborating_source:
-      publisher: News on AIR (Prasar Bharati)
-      title: "Vaishno Devi Yatra resumes after 22-day suspension due to landslides"
-      url: https://www.newsonair.gov.in/vaishno-devi-yatra-resumes-after-22-day-suspension-due-to-landslides
+      publisher: Shri Mata Vaishno Devi Shrine Board
+      title: "Yatra Statistics - month-wise break-up of Yatra from 1986"
+      url: https://www.maavaishnodevi.org/yatrastatistics
       accessed: 2026-08-18
 
 # Months not covered by any window above are "clean". There is no third
