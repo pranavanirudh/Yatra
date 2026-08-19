@@ -49,7 +49,7 @@ src/yatra/
   ephemeris.py   thin port over the astronomy backend. One backend at a time.
   panchanga.py   tithi/sankranti/festival rules. Backend-independent.
   calendarfeat.py  festival dates -> monthly feature frame.
-  models.py      the 9 models, the registry, NEEDS_CALENDAR,
+  models.py      the 9 models, the registry, NEEDS_CALENDAR, ABLATIONS,
                  and the switching model's break detector.
   metrics.py     MASE and friends. One denominator definition, used by all.
   backtest.py    the origin set, and the assertion that everyone shares it.
@@ -131,6 +131,27 @@ unavailable. It does **not** try Swiss Ephemeris, catch ImportError, and quietly
 use something else — that is the §5 failure mode wearing a different hat. If
 the configured backend cannot load, the calendar stage crashes.
 
+### 3.7 Ablation pairs are declared, not inferred
+
+`ABLATIONS` in `models.py` is a literal tuple naming, for each design choice
+under test, the arm that has it and the arm that does not. The report's
+"what each design choice is worth" section is generated from it.
+
+Same reasoning as §3.3, and the same scar. A pair inferred from names — a
+`_cal` suffix, a shared prefix — stops being a pair the moment somebody
+renames a model, and a comparison of an arm against itself reports a
+difference of zero. Zero is indistinguishable from "this choice does not
+matter", which is a publishable-looking finding.
+
+`_validate_ablations()` runs at import and raises if a pair names an
+unregistered model, compares a model with itself, is declared twice, or — for
+the calendar pair specifically — has both arms inside `NEEDS_CALENDAR` or
+neither. `tests/test_registry.py` covers each case.
+
+The resolved/unresolved bar in that section is read from the bootstrap
+artefact's own `confidence` column. Do not type a significance threshold into
+`report.py`: that would put a number in the README that no row produced.
+
 ## 4. Things that must crash, not warn
 
 A short list, because the temptation to downgrade these to warnings recurs:
@@ -142,6 +163,9 @@ A short list, because the temptation to downgrade these to warnings recurs:
 - `needs_calendar` model fit without calendar features → `CalendarRoutingError`.
 - Model missing from a cell of the origin × horizon grid → `RaggedPanel`.
 - Configured ephemeris backend unavailable → `EphemerisUnavailable`.
+- Declared ablation pair naming an unregistered model, comparing a model
+  with itself, or (for the calendar pair) failing to straddle
+  `NEEDS_CALENDAR` → `ConfigError` at import.
 - Sankranti falling within minutes of a new moon → `ConfigError` naming the
   date. Which side it lands on decides a lunar month's name and can create or
   erase an adhika month, shifting every festival label for that year. That
@@ -159,10 +183,15 @@ None of these has a `strict=False` escape hatch. Adding one re-opens §5.
 
 ## 5. Data
 
-`data/raw/` is owner-supplied and is not in this repository yet. See
+`data/raw/` is owner-supplied. The observations are now present — monthly
+counts from 1986-01, with the annual file they reconcile against. See
 [docs/data_schema.md](docs/data_schema.md) for the exact files and columns the
 contract expects. The pipeline will not run without them and will not pretend
 to: `make validate` is the first target for that reason.
+
+`data/raw/` is written only by `make ingest`, which is not part of `all`. Do not
+edit those files by hand and do not let a pipeline stage write into them: the
+observation set must not change underneath a run that is scoring against it.
 
 Do not add a sample file, a fixture with plausible footfall values, or a
 `--demo` flag. If you need to exercise the pipeline without data, run the unit

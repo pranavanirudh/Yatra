@@ -55,7 +55,14 @@ def test_every_figure_is_written(tmp_path):
     frame = scored_frame()
     table = backtest.per_regime_table(frame)
     written = figures.build_all(observations(), frame, table, windows(), tmp_path)
-    assert len(written) == 4
+    assert len(written) == 5
+    assert {path.name for path in written} == {
+        "series_shocks.png",
+        "forecast_vs_actual_h1.png",
+        "regime_ranking.png",
+        "rank_shift.png",
+        "horizon_profile.png",
+    }
     for path in written:
         assert path.exists()
         assert path.stat().st_size > 5_000, f"{path.name} is suspiciously small"
@@ -69,7 +76,7 @@ def test_bootstrap_figure_is_added_when_the_frame_is_present(tmp_path):
     result = bootstrap.run(frame, bootstrap.BootstrapConfig(
         n_resamples=120, block_origins=4, confidence=0.9, seed=1, metric="mase"))
     written = figures.build_all(observations(), frame, table, windows(), tmp_path, result)
-    assert len(written) == 5
+    assert len(written) == 6
     assert (tmp_path / "bootstrap_intervals.png").exists()
 
 
@@ -86,6 +93,20 @@ def test_an_absent_horizon_names_the_available_ones(tmp_path):
     frame = scored_frame()
     with pytest.raises(ConfigError, match="available"):
         figures.forecast_vs_actual(frame, windows(), tmp_path / "x.png", horizon=99)
+
+
+def test_horizon_profile_refuses_a_single_regime(tmp_path):
+    """One panel of a two-panel comparison is not the comparison."""
+    frame = scored_frame()
+    frame = frame[frame["regime"] == regimes.CLEAN]
+    with pytest.raises(ConfigError, match="no per-horizon comparison"):
+        figures.horizon_profile(frame, tmp_path / "x.png")
+
+
+def test_horizon_profile_refuses_a_frame_without_horizons(tmp_path):
+    frame = scored_frame().drop(columns=["horizon"])
+    with pytest.raises(ConfigError, match="horizon"):
+        figures.horizon_profile(frame, tmp_path / "x.png")
 
 
 def test_figures_module_contains_no_literal_results():

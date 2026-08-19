@@ -305,13 +305,31 @@ def _assert_rectangular(
             )
 
 
+# Twelve significant digits, not full repr.
+#
+# The backtest is reproducible to about one ulp but not bit-identical: BLAS
+# reduction order inside the estimators moves the last bit of a fitted value,
+# so a no-op re-run rewrote most rows of this file with numerically identical
+# numbers. This file is committed and is the artefact every README number
+# traces to, and a diff touching 60% of its rows after a re-run that changed
+# nothing makes `git diff` useless for spotting a change that did.
+#
+# Twelve digits is nine finer than the third decimal the README quotes and
+# four finer than any aggregate here is meaningful to, so nothing reported can
+# move. It does not make the file bit-stable in principle -- a value sitting
+# within an ulp of a rounding boundary can still flip its twelfth digit -- but
+# it takes the churn from most of the file to a handful of rows, which is the
+# difference between a diff nobody reads and one that means something.
+METRICS_FLOAT_FORMAT = "%.12g"
+
+
 def write(frame: pd.DataFrame, path: str | Path = "results/metrics.csv") -> Path:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     out = frame.copy()
     out["origin"] = pd.PeriodIndex(out["origin"], freq="M").astype(str)
     out["target"] = pd.PeriodIndex(out["target"], freq="M").astype(str)
-    out.to_csv(path, index=False)
+    out.to_csv(path, index=False, float_format=METRICS_FLOAT_FORMAT)
     return path
 
 

@@ -494,6 +494,96 @@ def _validate_registry() -> None:
 _validate_registry()
 
 
+# --------------------------------------------------------------------------
+# Ablation pairs. Literal, for the same reason NEEDS_CALENDAR is.
+# --------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Ablation:
+    """Two registered models differing by exactly one design choice.
+
+    The pair is what makes a difference in MASE readable as the worth of that
+    choice rather than as the difference between two estimators. Both arms are
+    scored on the same origin set with the same MASE denominator, so the gap
+    cannot come from normalisation.
+
+    ``treatment`` has the thing; ``control`` does not.
+    """
+
+    name: str
+    treatment: str
+    control: str
+    varies: str
+    question: str
+
+
+# Written out by hand and checked against the registry at import, because an
+# ablation whose two arms have quietly become the same model reports a null
+# result and looks exactly like a real one. That is the failure this project
+# already had once, in the calendar routing.
+ABLATIONS: tuple[Ablation, ...] = (
+    Ablation(
+        name="calendar",
+        treatment="sarimax_cal",
+        control="sarima",
+        varies="festival calendar features",
+        question="do the computed festival dates earn their place as regressors?",
+    ),
+    Ablation(
+        name="switch",
+        treatment="switching",
+        control="holt_winters_add",
+        varies="whether the model switches at a detected break",
+        question="does reacting to a break beat never reacting to one?",
+    ),
+    Ablation(
+        name="exit_rule",
+        treatment="switching_sticky",
+        control="switching",
+        varies="how long the switched regime is held before release",
+        question="once switched, is it better to hold or to release as soon as "
+                 "the break clears?",
+    ),
+)
+
+
+def _validate_ablations() -> None:
+    """Fail at import if a declared pair no longer describes a real comparison."""
+    seen: set[tuple[str, str]] = set()
+    for ablation in ABLATIONS:
+        missing = sorted({ablation.treatment, ablation.control} - set(REGISTRY))
+        if missing:
+            raise ConfigError(
+                f"Ablation '{ablation.name}' names unregistered model(s): {missing}. "
+                "A rename left an ablation pointing at nothing, and an ablation "
+                "that cannot be resolved is one nobody notices has stopped running."
+            )
+        if ablation.treatment == ablation.control:
+            raise ConfigError(
+                f"Ablation '{ablation.name}' compares '{ablation.treatment}' with "
+                "itself, which measures nothing and reports zero as a finding."
+            )
+        pair = (ablation.treatment, ablation.control)
+        if pair in seen:
+            raise ConfigError(f"Ablation pair {pair} is declared more than once.")
+        seen.add(pair)
+
+    calendar = next((a for a in ABLATIONS if a.name == "calendar"), None)
+    if calendar is not None:
+        fed = {calendar.treatment, calendar.control} & set(NEEDS_CALENDAR)
+        if fed != {calendar.treatment}:
+            raise ConfigError(
+                "The calendar ablation's arms do not straddle NEEDS_CALENDAR: "
+                f"fed = {sorted(fed)}. Both arms fed, or neither, is the exact "
+                "shape of the bug this project already had -- the arm trains "
+                "like its control and the null result looks real."
+            )
+
+
+_validate_ablations()
+
+
 def get(name: str) -> ModelSpec:
     try:
         return REGISTRY[name]

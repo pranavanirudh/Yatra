@@ -176,3 +176,43 @@ def test_per_regime_table_has_ranks_and_counts(tmp_path):
     assert f"{regimes.CLEAN}_rank" in table.columns
     assert f"{regimes.CLEAN}_n" in table.columns
     assert sorted(table[f"{regimes.CLEAN}_rank"]) == [1, 2, 3]
+
+
+def test_writing_metrics_is_idempotent(tmp_path):
+    """A read-write round trip must not change a byte.
+
+    The backtest is reproducible to about one ulp but not bit-identical, and
+    metrics.csv is committed. Before the write format was pinned, a re-run that
+    changed nothing rewrote most rows with numerically equal values, which
+    hides a change that matters inside a diff of changes that do not.
+    """
+    frame = pd.DataFrame(
+        {
+            "origin": ["2000-01", "2000-01"],
+            "target": ["2000-02", "2000-03"],
+            "horizon": [1, 2],
+            "model": ["probe", "probe"],
+            "actual": [1234.0, 5678.0],
+            # Values chosen to need more digits than the format keeps.
+            "predicted": [1234.5678901234567, 68175664362.090004],
+            "mase": [3.3222948549659956, 1.0 / 3.0],
+        }
+    )
+    first = backtest.write(frame, tmp_path / "metrics.csv")
+    text_one = first.read_bytes()
+
+    second = backtest.write(backtest.read(first), tmp_path / "metrics.csv")
+    assert second.read_bytes() == text_one, (
+        "metrics.csv changes on a round trip, so a re-run that computed the "
+        "same numbers still produces a diff."
+    )
+
+
+def test_the_written_precision_is_far_finer_than_anything_reported():
+    """Guard the trade: the format must not be tightened into the reported range."""
+    digits = int(backtest.METRICS_FLOAT_FORMAT.strip("%.g"))
+    assert digits >= 9, (
+        f"metrics.csv is written to {digits} significant digits, which is "
+        "approaching the precision the README quotes. Rounding must stay well "
+        "clear of anything reported."
+    )

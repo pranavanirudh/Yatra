@@ -5,7 +5,7 @@
 
 PYTHON ?= python
 
-.PHONY: all ingest validate calendar backtest bootstrap figures report operations test clean
+.PHONY: all ingest validate calendar backtest relabel bootstrap applicability sensitivity figures report operations test clean
 
 all:
 	$(PYTHON) make.py all
@@ -24,8 +24,19 @@ calendar:
 backtest:
 	$(PYTHON) make.py backtest
 
+# `relabel` attaches regime labels to forecasts already scored. It is a join,
+# not a refit: no model ever sees a label (CLAUDE.md 3.4).
+relabel:
+	$(PYTHON) make.py relabel
+
 bootstrap:
 	$(PYTHON) make.py bootstrap
+
+applicability:
+	$(PYTHON) make.py applicability
+
+sensitivity:
+	$(PYTHON) make.py sensitivity
 
 figures:
 	$(PYTHON) make.py figures

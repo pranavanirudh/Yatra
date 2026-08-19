@@ -284,6 +284,10 @@ def operations() -> None:
 
     observations = contract.load(DATA_DIR)
     frame = backtest.read(RESULTS_DIR / "metrics.csv")
+    # Same guard the other regime-consuming stages carry. The briefing splits
+    # its bands by regime, so labels that no longer match shocks.yaml would put
+    # a stale contingency range in front of a duty officer.
+    backtest.assert_labels_current(frame, CONFIG_DIR / "shocks.yaml")
     config = operations_mod.load_config(CONFIG_DIR / "operations.yaml")
 
     model = operations_mod.choose_model(frame, config.model)
@@ -319,7 +323,10 @@ def operations() -> None:
 
     written = operations_mod.write_table(table, RESULTS_DIR / "operations.csv")
     _say(f"wrote {written}")
-    text = operations_mod.briefing(table, config, model, observations.monthly, spread)
+    text = operations_mod.briefing(
+        table, config, model, observations.monthly, spread,
+        shocks_hash=backtest.shocks_fingerprint(CONFIG_DIR / "shocks.yaml"),
+    )
     written = operations_mod.write_briefing(text, RESULTS_DIR / "briefing.md")
     _say(f"wrote {written}")
 

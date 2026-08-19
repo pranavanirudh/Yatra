@@ -50,6 +50,23 @@ declared shock window. It is much wider, and it is what a contingency has to
 absorb. Planning to the likely range and then meeting a disruption is how a site
 ends up under-resourced.
 
+**A shock-regime lower bound of zero is a measurement, not a placeholder.** The
+record contains months when this shrine was closed and the count was zero, so a
+band measured on disrupted months reaches zero honestly. The band is clamped
+there rather than going negative — a negative attendance is not a plan — but the
+floor is something that has happened. The briefing says so beneath the table,
+because a zero in a planning document reads like a rendering fault, and a reader
+who dismisses it as one has dismissed the only entry in the document that is a
+matter of record.
+
+**If you edit the shock windows, regenerate the briefing.** The bands are split
+by regime, so the briefing depends on the labels in `results/metrics.csv`. Run
+`python make.py relabel` (seconds; no model is refit) and then `python make.py
+operations`. The operations stage refuses to run against labels that no longer
+match `shocks.yaml`, and the briefing's provenance table records the
+shock-window fingerprint it was built from, so a briefing read months later can
+be checked against the windows in force at the time.
+
 Both are expressed in units of the MASE denominator internally and converted to
 people at the current level. That detail matters for one reason: an earlier
 version used a ratio of actual to predicted, and during a closure — when the

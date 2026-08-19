@@ -21,18 +21,23 @@ single leaderboard averaged over all months is not just imprecise, it is
 actively misleading — it recommends the model that fails exactly when a forecast
 would have mattered.
 
-## 2. Targets (not yet achieved — this is the work)
+## 2. Targets
 
-| # | Target | Status 2026-08-18 |
-|---|--------|-------------------|
-| T1 | Verified monthly observations, no gaps, every annual total reconciling against the sum of its months | **blocked — no data on disk** |
-| T2 | Shock windows declared with source citations | scaffolded, 3 windows drafted |
-| T3 | Rolling-origin backtest, all models on one origin set | code complete, cannot run without T1 |
-| T4 | Regime-split metrics in `results/metrics.csv` | blocked on T1 |
-| T5 | Calendar layer computed from an ephemeris, never tabulated | **done** — skyfield declared, festival dates match published almanacs |
-| T6 | Block bootstrap over origins, `results/bootstrap.csv` | **built** — resamples origins in blocks; unrun until T1 |
-| T7 | `switching` model, leak-free break detector | **built** — detector + leak guards tested; unscored until T1 |
-| T8 | Figures regenerating from `make all` | **built** — five figures, all drawn from artefacts |
+The status column was written on 2026-08-18, when the repository held no
+observations and nothing had run. It is kept as it was, because a spec that
+rewrites its own history stops being evidence of what was promised before the
+work was done. The **Now** column is the current state.
+
+| # | Target | Status 2026-08-18 | Now |
+|---|--------|-------------------|-----|
+| T1 | Verified monthly observations, no gaps, every annual total reconciling against the sum of its months | **blocked — no data on disk** | done — 487 months, 1986-01 to 2026-07 |
+| T2 | Shock windows declared with source citations | scaffolded, 3 windows drafted | declared; **citations still unverified by the owner**, and the README says so |
+| T3 | Rolling-origin backtest, all models on one origin set | code complete, cannot run without T1 | run — 362 origins × 6 horizons × 9 models |
+| T4 | Regime-split metrics in `results/metrics.csv` | blocked on T1 | done, and reported by horizon and by window definition as well as pooled |
+| T5 | Calendar layer computed from an ephemeris, never tabulated | **done** — skyfield declared, festival dates match published almanacs | unchanged; what it contains is now stated in the README |
+| T6 | Block bootstrap over origins, `results/bootstrap.csv` | **built** — resamples origins in blocks; unrun until T1 | run — 2,000 resamples |
+| T7 | `switching` model, leak-free break detector | **built** — detector + leak guards tested; unscored until T1 | scored; it does not rescue the shock regime, and that is reported |
+| T8 | Figures regenerating from `make all` | **built** — five figures, all drawn from artefacts | six figures |
 
 ## 3. Hard constraints
 
@@ -95,6 +100,11 @@ than one that crashes.** Countermeasures adopted here:
 ## 6. Sequencing
 
 The owner works in numbered steps and stops between them for review. Do not run
-ahead of the current step. Current position: **Step 0 — build the thing the
-later steps operate on.** Steps 1–4 are in the owner's instructions and are not
+ahead of the current step. Steps 1–4 are in the owner's instructions and are not
 restated here.
+
+Step 0 — build the thing the later steps operate on — is complete, as are the
+steps that produced the results now in `results/`. What is outstanding is not
+code: the shock-window citations need checking against their sources, and the
+crowd-planning briefing needs resourcing ratios from someone with operational
+authority. Both are recorded as open in the README, and neither has a default.

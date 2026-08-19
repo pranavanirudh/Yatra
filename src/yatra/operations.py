@@ -342,8 +342,16 @@ def briefing(
     model: str,
     observations: pd.Series,
     spread: pd.DataFrame,
+    shocks_hash: str | None = None,
 ) -> str:
-    """A plain-language operational briefing. Written for a duty officer."""
+    """A plain-language operational briefing. Written for a duty officer.
+
+    ``shocks_hash`` fingerprints the shock windows the bands were split by. It
+    is recorded because this document is read on its own, away from the run
+    that produced it: without it, a briefing built before the windows were
+    edited is indistinguishable from one built after, and the difference is the
+    contingency range.
+    """
     confidence = int(round(config.confidence * 100))
     last = observations.index[-1].to_period("M")
 
@@ -387,12 +395,29 @@ def briefing(
         "|---|---:|",
     ]
     unmeasured = []
+    floored = []
     for row in table.itertuples():
         if not np.isfinite(row.shock_hi):
             unmeasured.append(row.month)
             lines.append(f"| {row.month} | not measurable |")
         else:
+            if np.isfinite(row.shock_lo) and row.shock_lo <= 0:
+                floored.append(row.month)
             lines.append(f"| {row.month} | {_people(row.shock_lo)} – {_people(row.shock_hi)} |")
+
+    if floored:
+        # A zero in a planning table looks like a rendering fault, and a reader
+        # who dismisses it as one has dismissed the only entry in this document
+        # that has actually happened.
+        lines += [
+            "",
+            "**A lower bound of zero is a measurement here, not a placeholder.** "
+            f"For {', '.join(floored)} the shock-regime range reaches zero "
+            "because the observed record contains months when this shrine was "
+            "closed and the count was zero. The band is clamped at zero rather "
+            "than going negative, but the floor itself is something that has "
+            "happened, not a missing value.",
+        ]
 
     if unmeasured:
         # A blank cell in a contingency table is dangerous if it reads as "no
@@ -456,6 +481,10 @@ def briefing(
         f"| Band | empirical, {confidence}% of backtest errors |",
         f"| Clean-month errors used | {int(spread[spread['regime'] == regimes.CLEAN]['n'].sum())} |",
         f"| Shock-month errors used | {int(spread[spread['regime'] == regimes.SHOCK]['n'].sum())} |",
+    ]
+    if shocks_hash:
+        lines.append(f"| Shock windows | `{shocks_hash}` |")
+    lines += [
         "",
     ]
     return "\n".join(lines)

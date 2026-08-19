@@ -17,22 +17,29 @@ have mattered.
 
 ## Status
 
-This repository is under construction and **has not produced a result yet**.
+The pipeline has run end to end on the owner-supplied observations. The results
+section below is generated from `results/metrics.csv`, and every figure in
+`results/figures/` was drawn from committed artefacts by the same run.
 
 | Stage | State |
 |---|---|
-| Data contract | code complete, no observations on disk |
-| Shock windows | declared with citations, awaiting owner verification |
-| Model registry | code complete |
-| Backtest harness | code complete, never run |
-| Calendar layer | computed, validated against published almanacs |
-| Bootstrap intervals | built, block resampling over origins |
-| Shock-window sensitivity | built, ranking holds under both definitions |
-| Switching model | built, leak-guarded, unscored until data lands |
-| Figures | built, regenerated from artefacts |
-| Crowd-planning briefing | built, awaiting site planning ratios |
+| Data contract | observations loaded, contiguous, annual totals reconciling |
+| Shock windows | declared with citations — **awaiting owner verification** |
+| Model registry | complete; one model reported as unfittable rather than dropped |
+| Backtest harness | run; one origin set, shared MASE denominator |
+| Calendar layer | computed from the ephemeris, validated against published almanacs |
+| Bootstrap intervals | run; block resampling over origins |
+| Shock-window sensitivity | run; reported in the results section below |
+| Switching model | run and scored, leak guards live |
+| Figures | regenerated from artefacts |
+| Crowd-planning briefing | written; **awaiting site planning ratios** |
 
-Nothing below the generated marker exists yet, because no backtest has run.
+Two items are open and neither is code. The shock-window citations were drafted
+from public reporting and have not been checked against the sources; until they
+are, the regime split rests on an unaudited boundary, and the generated section
+says so. And the briefing ships with no resourcing ratios, because those are
+site policy rather than model output.
+
 There are no placeholder numbers anywhere in this file, and there will not be
 any: the results section is written by `src/yatra/report.py` directly from
 `results/metrics.csv`, so a number can appear here only if a row produced it.
@@ -51,9 +58,9 @@ python make.py ingest                                      # writes data/raw/
 python make.py all      # or `make all` where make exists
 ```
 
-`all` runs `validate`, `calendar`, `backtest`, `bootstrap`, `figures`,
-`report`, `operations`, `test`, in that order. A stage that fails stops the run
-rather than being skipped.
+`all` runs `validate`, `calendar`, `backtest`, `relabel`, `bootstrap`,
+`applicability`, `sensitivity`, `figures`, `report`, `operations`, `test`, in
+that order. A stage that fails stops the run rather than being skipped.
 
 `ingest` is deliberately **not** part of `all`: it writes `data/raw/`, and the
 observation set must never change underneath a pipeline run.
@@ -254,6 +261,91 @@ A rank correlation over every model is a blunt summary. These are the substituti
 The Spearman correlation between the two rankings is **-0.383**, with a 95% interval of [-0.717, +0.783]. That interval spans zero, so on the conventional threshold the rank correlation on its own would not be called significant.
 
 That threshold is answering a harder question than the one being asked. Rho tests whether the *whole* ordering of every model reverses, and it has only the disrupted months in the record to estimate a full permutation from — so its interval is wide by construction. The pairwise proportions above test the claims anyone would act on, and are correspondingly sharper on the same evidence. Both are reported; they are not in conflict, they are different questions.
+
+### Does the finding survive a different boundary?
+
+The shock windows are drawn by hand. Below, the *same* forecasts are re-scored under each declared window set — a re-labelling, not a refit, because no model ever receives a regime label.
+
+| Window set | Windows | Shock forecasts per model | Rank correlation | Inverts |
+|---|---:|---:|---:|---|
+| `declared` — the owner's declared windows, as shipped | 3 | 180 | -0.383 | yes |
+| `refined` — Boundaries redrawn against the observations: article_370 dropped (no monthly signal at the shrine), covid trimmed to 2021-08 (recovery completes in autumn 2021), floods_2025 extended to 2025-10. | 2 | 144 | -0.400 | yes |
+
+The rank correlation is negative under **2 of 2** window definitions. The inversion is not an artefact of where the boundaries were drawn.
+
+The two models the finding turns on do not move: `sarimax_cal` ranks first on clean months and `naive` ranks first on shock months under every window set.
+
+Models whose clean rank moves between window sets: `holt_winters_add`, `switching`.
+Models whose shock rank moves between window sets: `holt_winters_add`, `seasonal_naive`, `switching`, `switching_sticky`.
+
+### Does the finding survive at every forecast lead time?
+
+The leaderboard above pools h=1 through h=6. A planner reading the briefing is reading one lead time, not the average of six. Here the same forecasts are split by horizon.
+
+| Horizon | Best on clean | Its shock rank | Best on shock | Its clean rank | Rank correlation |
+|---:|---|---:|---|---:|---:|
+| h=1 | `sarimax_cal` | 4 of 9 | `naive` | 8 of 9 | -0.367 |
+| h=2 | `sarimax_cal` | 5 of 9 | `naive` | 8 of 9 | -0.483 |
+| h=3 | `sarimax_cal` | 4 of 9 | `naive` | 8 of 9 | -0.383 |
+| h=4 | `sarimax_cal` | 4 of 9 | `naive` | 8 of 9 | -0.383 |
+| h=5 | `sarimax_cal` | 4 of 9 | `naive` | 8 of 9 | -0.350 |
+| h=6 | `sarimax_cal` | 4 of 9 | `naive` | 8 of 9 | -0.333 |
+
+The correlation is negative at **6 of 6** lead times, and the same two models take the two crowns at every one of them: `sarimax_cal` on clean months, `naive` on shock months. The inversion is not an artefact of pooling horizons — it is present at each horizon separately.
+
+### What each design choice is worth
+
+The leaderboard says which model won; it does not say what any one decision bought, because two models differ in many things at once. Each pair below differs by exactly one, and both arms are scored on the same origins against the same denominator.
+
+| Comparison | What varies | Regime | With | Without | Difference | With it better in |
+|---|---|---|---:|---:|---:|---:|
+| `sarimax_cal` vs `sarima` | festival calendar features | clean | 1.359 | 1.376 | -0.017 | 83.6% |
+|  |  | shock | 4.234 | 4.196 | +0.038 | 18.6% |
+| `switching` vs `holt_winters_add` | whether the model switches at a detected break | clean | 1.440 | 1.436 | +0.005 | 35.8% |
+|  |  | shock | 5.370 | 5.467 | -0.097 | 65.6% |
+| `switching_sticky` vs `switching` | how long the switched regime is held before release | clean | 1.522 | 1.440 | +0.082 | 0.7% |
+|  |  | shock | 5.151 | 5.370 | -0.219 | 90.4% |
+
+Lower MASE is better, so a **negative** difference means the choice helped. The last column is the share of block-bootstrap resamples in which it helped, which is what carries the claim — a difference in the third decimal is not a result on its own. Every arm is scored on the same 1,992 clean and **180 shock** forecasts, and the shock column is the thin one: read every difference in it against that number.
+
+- **Festival calendar features** — the sign flips between regimes — better on clean months, worse on shock ones.
+- **Whether the model switches at a detected break** — the sign flips between regimes — better on shock months, worse on clean ones.
+- **How long the switched regime is held before release** — the sign flips between regimes — better on shock months, worse on clean ones.
+
+Every one of these choices trades one regime against the other. That is the headline finding reappearing inside pairs of models differing by a single decision: on this record there is no design choice here that is simply better, only choices that are better somewhere.
+
+The calendar pair is worth reading twice, because the calendar layer is this project's largest single investment. A festival regressor asserts a surge on a date the ephemeris computed, and a closure or a flood does not move that date — the feature goes on predicting an arrival pattern that policy or the weather has cancelled. The sign above is consistent with that.
+
+**It is an observation, not a basis to build on.** It is one pair of models on 180 shock forecasts from a single shrine, and it is not among the comparisons that clear the declared level below. The obvious thing to do with it — route calendar features by regime, so the model drops them once it thinks it is in a shock — has deliberately not been built. Doing so would fit a mechanism to a difference this record cannot resolve, and the resulting model would then be scored on the same disrupted months that suggested it. What would justify building it is more disrupted months, from a site whose disruptions are not these ones.
+
+Of the 6 pair-and-regime comparisons above, **1** clears the bootstrap's declared 95% level in one direction or the other. The rest are directional and unresolved by this record, and are reported as such rather than as findings.
+
+### What the calendar layer contains
+
+`sarimax_cal` wins the clean regime and is one arm of the ablation above, so what its features are made of is part of reading both results. The dates are computed from an ephemeris — there is no date table in `src/` — under the declarations below.
+
+| | |
+|---|---|
+| Backend | `skyfield` (de421.bsp) |
+| Ayanamsa | lahiri |
+| Lunar month scheme | purnimanta |
+| Reference location | Shri Mata Vaishno Devi Bhawan |
+| Span computed | 1985-01-01 to 2030-12-31 |
+| Festival dates resolved | 966 |
+
+**5 festivals, not a general almanac.** The civil-day rule is declared per festival because it genuinely differs, and it decides more dates than any plausible disagreement between ephemerides does.
+
+| Festival | Tithi rule | Civil-day rule | Duration |
+|---|---|---|---:|
+| Chaitra Navratri (day 1) | chaitra shukla 1 | sunrise | 9 days |
+| Sharad Navratri (day 1) | ashvina shukla 1 | sunrise | 9 days |
+| Maha Shivaratri | phalguna krishna 14 | nishita | 1 day |
+| Diwali (Lakshmi Puja) | kartika krishna 30 | pradosha | 1 day |
+| Raksha Bandhan | shravana shukla 15 | sunrise | 1 day |
+
+The monthly columns handed to the model are `festival_days`, `sharad_navratri_days`, `is_navratri_month`, `lunar_drift_days`. Each is a function of the calendar alone and touches no observation, so none of them can carry a future footfall value into a forecast.
+
+Across the 552 months in the feature frame, **238** carry at least one festival day. In the other 314 the festival counts are zero, so whatever the arm contributes there comes from `lunar_drift_days`.
 
 ### Models that could not be scored
 

@@ -86,18 +86,63 @@ def test_backtest_config_only_names_registered_models():
     assert not unknown, f"backtest.yaml names unregistered models: {unknown}"
 
 
-def test_the_ablation_has_a_control():
-    """`sarimax_cal` is only interpretable against a no-calendar twin.
+def test_every_declared_ablation_has_both_arms_configured():
+    """An arm is only interpretable against its twin.
 
-    If the control were dropped from the config, the calendar arm would still
-    produce a number -- just an uninterpretable one.
+    If a control were dropped from the config, the treatment arm would still
+    produce a number -- just an uninterpretable one. The pairs come from
+    models.ABLATIONS rather than being listed here, so declaring a new pair
+    brings it under this check automatically.
     """
     config = backtest.load_config("experiments/configs/backtest.yaml")
-    if "sarimax_cal" in config.model_names:
-        assert "sarima" in config.model_names, (
-            "sarimax_cal is configured without its control 'sarima'. The pair is "
-            "the ablation; alone, the arm measures nothing."
-        )
+    configured = set(config.model_names)
+    for ablation in models.ABLATIONS:
+        if ablation.treatment in configured:
+            assert ablation.control in configured, (
+                f"'{ablation.treatment}' is configured without its control "
+                f"'{ablation.control}'. The pair is the ablation; alone, the arm "
+                "measures nothing."
+            )
+
+
+def test_every_ablation_resolves_in_the_registry():
+    for ablation in models.ABLATIONS:
+        assert ablation.treatment in models.REGISTRY, ablation.name
+        assert ablation.control in models.REGISTRY, ablation.name
+        assert ablation.treatment != ablation.control, ablation.name
+
+
+def test_the_calendar_ablation_straddles_the_routing_set():
+    """Both arms fed, or neither, is the historical bug wearing a new hat."""
+    calendar = next(a for a in models.ABLATIONS if a.name == "calendar")
+    assert calendar.treatment in models.NEEDS_CALENDAR
+    assert calendar.control not in models.NEEDS_CALENDAR
+
+
+def test_an_ablation_pointing_at_a_renamed_model_is_caught(monkeypatch):
+    surviving = {n: s for n, s in models.REGISTRY.items()
+                 if n != models.ABLATIONS[0].control}
+    monkeypatch.setattr(models, "REGISTRY", surviving)
+    with pytest.raises(ConfigError, match="unregistered model"):
+        models._validate_ablations()
+
+
+def test_an_ablation_against_itself_is_refused(monkeypatch):
+    """The degenerate pair reports zero, and zero looks exactly like a null result."""
+    twin = models.Ablation(
+        name="degenerate", treatment="naive", control="naive",
+        varies="nothing at all", question="does a model beat itself?",
+    )
+    monkeypatch.setattr(models, "ABLATIONS", (twin,))
+    with pytest.raises(ConfigError, match="with itself"):
+        models._validate_ablations()
+
+
+def test_a_calendar_ablation_with_both_arms_fed_is_refused(monkeypatch):
+    """The exact historical failure: the arm trains like its control."""
+    monkeypatch.setattr(models, "NEEDS_CALENDAR", frozenset({"sarimax_cal", "sarima"}))
+    with pytest.raises(ConfigError, match="straddle"):
+        models._validate_ablations()
 
 
 def test_calendar_config_features_are_declared():

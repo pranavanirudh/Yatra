@@ -15,8 +15,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
+import yaml
 
-from . import backtest, metrics, regimes
+from . import backtest, metrics, models, regimes, sensitivity
 from .errors import ConfigError
 
 BEGIN = "<!-- BEGIN GENERATED -->"
@@ -265,6 +266,610 @@ def _resample_evidence(
     return lines
 
 
+def _sensitivity(
+    summary_path: str | Path = "results/sensitivity_summary.csv",
+    per_model_path: str | Path = "results/sensitivity.csv",
+) -> list[str]:
+    """Does the headline survive a different boundary?
+
+    The inversion is a comparison across a line somebody drew by hand. A
+    finding that flips when the line moves by a month is a finding about the
+    line. ``sensitivity.py`` re-scores the identical forecasts under every
+    declared window set -- possible only because no model ever sees a regime
+    label (CLAUDE.md 3.4) -- and this section reports what came back.
+
+    It reports the arms that disagree as readily as the ones that agree. A
+    section that appeared only when the answer was reassuring would be worth
+    nothing, since its absence would then carry the bad news silently.
+    """
+    try:
+        summary_p, per_model_p = Path(summary_path), Path(per_model_path)
+        if not (summary_p.exists() and per_model_p.exists()):
+            return []
+        summary = pd.read_csv(summary_p)
+        per_model = pd.read_csv(per_model_p)
+    except Exception:  # noqa: BLE001 - the README must render without it
+        return []
+    if summary.empty or per_model.empty or len(summary) < 2:
+        return []
+
+    lines = [
+        "### Does the finding survive a different boundary?",
+        "",
+        "The shock windows are drawn by hand. Below, the *same* forecasts are "
+        "re-scored under each declared window set — a re-labelling, not a "
+        "refit, because no model ever receives a regime label.",
+        "",
+        "| Window set | Windows | Shock forecasts per model | Rank correlation | Inverts |",
+        "|---|---:|---:|---:|---|",
+    ]
+    for row in summary.itertuples():
+        # The refined arm's description is a multi-line YAML block; a raw
+        # newline would end the table row.
+        note = " ".join(str(row.description).split())
+        label = f"`{row.arm}`" + (f" — {note}" if note else "")
+        lines.append(
+            f"| {label} | {int(row.n_windows)} | "
+            f"{int(row.shock_forecasts_per_model):,} | "
+            f"{float(row.rank_correlation):+.3f} | "
+            f"{'yes' if bool(row.inverts) else 'no'} |"
+        )
+    lines.append("")
+
+    inverting = int(summary["inverts"].astype(bool).sum())
+    total = len(summary)
+    if inverting == total:
+        lines += [
+            f"The rank correlation is negative under **{inverting} of {total}** "
+            "window definitions. The inversion is not an artefact of where the "
+            "boundaries were drawn.",
+            "",
+        ]
+    else:
+        lines += [
+            f"The rank correlation is negative under **{inverting} of {total}** "
+            "window definitions, so the sign of the headline finding depends on "
+            "the boundary. Read the leaderboard above as conditional on the "
+            "declared windows, and treat the disagreeing arm as the reason to "
+            "settle those dates before acting on the ranking.",
+            "",
+        ]
+
+    lines += _sensitivity_movement(per_model)
+    return lines
+
+
+def _sensitivity_movement(per_model: pd.DataFrame) -> list[str]:
+    """Which models actually changed rank, and whether the winners were among them."""
+    verdict = sensitivity.agreement(per_model)
+    arms = verdict["arms"]
+    baseline = per_model[per_model["arm"] == arms[0]].set_index("model")
+    best_clean = baseline["clean_rank"].idxmin()
+    best_shock = baseline["shock_rank"].idxmin()
+
+    winners_held = all(
+        per_model[per_model["arm"] == arm].set_index("model").loc[best, f"{col}_rank"] == 1
+        for arm in arms
+        for best, col in ((best_clean, "clean"), (best_shock, "shock"))
+    )
+
+    lines = []
+    if winners_held:
+        lines += [
+            f"The two models the finding turns on do not move: `{best_clean}` "
+            f"ranks first on clean months and `{best_shock}` ranks first on "
+            "shock months under every window set.",
+            "",
+        ]
+    else:
+        lines += [
+            f"The models the finding turns on — `{best_clean}` on clean months, "
+            f"`{best_shock}` on shock months — do **not** hold first place under "
+            "every window set. The headline pair is boundary-dependent.",
+            "",
+        ]
+
+    if verdict["rankings_identical"]:
+        lines += ["No model changes rank in either column.", ""]
+        return lines
+
+    for column, changed in (
+        ("clean", verdict["clean_rank_changes"]),
+        ("shock", verdict["shock_rank_changes"]),
+    ):
+        if not changed:
+            lines.append(f"No model changes rank in the {column} column.")
+        else:
+            names = ", ".join(f"`{m}`" for m in changed)
+            lines.append(
+                f"Models whose {column} rank moves between window sets: {names}."
+            )
+    lines.append("")
+    return lines
+
+
+def _by_horizon(frame: pd.DataFrame) -> list[str]:
+    """The same comparison at each forecast lead time, unpooled.
+
+    The leaderboard averages h=1 through h=6. Nobody forecasts at the average
+    of six lead times: an operations lead reading the briefing is reading one
+    horizon. If the inversion were driven by the long horizons alone, the
+    pooled table would look exactly as it does now and the short-horizon reader
+    would be misled by it -- so the split is reported whether or not it agrees.
+    """
+    clean, shock = regimes.CLEAN, regimes.SHOCK
+    if "horizon" not in frame.columns:
+        return []
+    horizons = sorted(int(h) for h in frame["horizon"].dropna().unique())
+    if len(horizons) < 2:
+        return []
+
+    rows = []
+    for horizon in horizons:
+        subset = frame[frame["horizon"] == horizon]
+        table = backtest.per_regime_table(subset)
+        if clean not in table.columns or shock not in table.columns:
+            return []
+        try:
+            rho, _ = metrics.rank_correlation(table[clean], table[shock])
+        except ValueError:
+            return []
+        best_clean, best_shock = table[clean].idxmin(), table[shock].idxmin()
+        rows.append(
+            {
+                "horizon": horizon,
+                "best_clean": best_clean,
+                "best_clean_shock_rank": int(table.loc[best_clean, f"{shock}_rank"]),
+                "best_shock": best_shock,
+                "best_shock_clean_rank": int(table.loc[best_shock, f"{clean}_rank"]),
+                "rho": rho,
+                "n_models": len(table),
+            }
+        )
+
+    lines = [
+        "### Does the finding survive at every forecast lead time?",
+        "",
+        f"The leaderboard above pools h={horizons[0]} through h={horizons[-1]}. "
+        "A planner reading the briefing is reading one lead time, not the "
+        "average of six. Here the same forecasts are split by horizon.",
+        "",
+        "| Horizon | Best on clean | Its shock rank | Best on shock | Its clean rank | Rank correlation |",
+        "|---:|---|---:|---|---:|---:|",
+    ]
+    for row in rows:
+        lines.append(
+            f"| h={row['horizon']} | `{row['best_clean']}` | "
+            f"{row['best_clean_shock_rank']} of {row['n_models']} | "
+            f"`{row['best_shock']}` | "
+            f"{row['best_shock_clean_rank']} of {row['n_models']} | "
+            f"{row['rho']:+.3f} |"
+        )
+    lines.append("")
+
+    inverting = sum(1 for row in rows if row["rho"] < 0)
+    total = len(rows)
+    clean_winners = {row["best_clean"] for row in rows}
+    shock_winners = {row["best_shock"] for row in rows}
+
+    if inverting == total and len(clean_winners) == 1 and len(shock_winners) == 1:
+        lines += [
+            f"The correlation is negative at **{inverting} of {total}** lead "
+            f"times, and the same two models take the two crowns at every one of "
+            f"them: `{clean_winners.pop()}` on clean months, "
+            f"`{shock_winners.pop()}` on shock months. The inversion is not an "
+            "artefact of pooling horizons — it is present at each horizon "
+            "separately.",
+            "",
+        ]
+        return lines
+
+    if inverting == total:
+        lines += [
+            f"The correlation is negative at **{inverting} of {total}** lead "
+            "times, so the inversion itself survives the split. Which model wins "
+            "does not: the crown changes hands across horizons, so a "
+            "recommendation has to name the lead time it applies to.",
+            "",
+        ]
+        return lines
+
+    holds = ", ".join(f"h={row['horizon']}" for row in rows if row["rho"] < 0) or "no horizon"
+    lines += [
+        f"The correlation is negative at only **{inverting} of {total}** lead "
+        f"times ({holds}). The pooled table above is therefore carrying the "
+        "horizons where it holds into the ones where it does not, and the "
+        "headline should be read as a statement about those lead times rather "
+        "than about the series.",
+        "",
+    ]
+    return lines
+
+
+def _ablations(
+    table: pd.DataFrame, bootstrap_path: str | Path = "results/bootstrap.csv"
+) -> list[str]:
+    """What each design choice is worth, from the pairs declared in models.py.
+
+    A leaderboard says which model won. It does not say what any single design
+    decision bought, because two models differ in many things at once. The
+    pairs in :data:`yatra.models.ABLATIONS` differ by exactly one, so their gap
+    is readable as the worth of that one thing -- and both arms are scored on
+    the same origins against the same MASE denominator, so the gap cannot be a
+    normalisation artefact.
+
+    The decisive/undecided line is drawn at the bootstrap's **own declared
+    confidence level**, read from the artefact rather than typed here. A
+    threshold invented in this file would be a number in the README that no row
+    produced.
+    """
+    clean, shock = regimes.CLEAN, regimes.SHOCK
+    if clean not in table.columns or shock not in table.columns:
+        return []
+
+    pairs = [
+        a for a in models.ABLATIONS
+        if a.treatment in table.index and a.control in table.index
+    ]
+    if not pairs:
+        return []
+
+    shares, confidence = _pairwise_shares(bootstrap_path)
+
+    lines = [
+        "### What each design choice is worth",
+        "",
+        "The leaderboard says which model won; it does not say what any one "
+        "decision bought, because two models differ in many things at once. "
+        "Each pair below differs by exactly one, and both arms are scored on the "
+        "same origins against the same denominator.",
+        "",
+    ]
+    header = "| Comparison | What varies | Regime | With | Without | Difference |"
+    rule = "|---|---|---|---:|---:|---:|"
+    if shares:
+        header += " With it better in |"
+        rule += "---:|"
+    lines += [header, rule]
+
+    verdicts = []
+    for ablation in pairs:
+        label = f"`{ablation.treatment}` vs `{ablation.control}`"
+        deltas = {}
+        for regime in (clean, shock):
+            with_it = float(table.loc[ablation.treatment, regime])
+            without = float(table.loc[ablation.control, regime])
+            delta = with_it - without
+            deltas[regime] = delta
+            share = shares.get((ablation.treatment, ablation.control, regime))
+            row = (
+                f"| {label if regime == clean else ''} | "
+                f"{ablation.varies if regime == clean else ''} | {regime} | "
+                f"{_fmt(with_it)} | {_fmt(without)} | {delta:+.3f} |"
+            )
+            if shares:
+                row += f" {share * 100:.1f}% |" if share is not None else " — |"
+            lines.append(row)
+        verdicts.append((ablation, deltas))
+    counts = _regime_counts_per_model(table)
+    basis = ""
+    if counts:
+        basis = (
+            f" Every arm is scored on the same {counts[clean]:,} clean and "
+            f"**{counts[shock]:,} shock** forecasts, and the shock column is the "
+            "thin one: read every difference in it against that number."
+        )
+    lines += [
+        "",
+        "Lower MASE is better, so a **negative** difference means the choice "
+        "helped. The last column is the share of block-bootstrap resamples in "
+        "which it helped, which is what carries the claim — a difference in the "
+        "third decimal is not a result on its own." + basis,
+        "",
+    ]
+
+    lines += _ablation_verdicts(verdicts, shares, confidence, counts)
+    return lines
+
+
+def _regime_counts_per_model(table: pd.DataFrame) -> dict[str, int]:
+    """Forecasts behind each regime column, per model. Empty if not recorded."""
+    counts = {}
+    for regime in (regimes.CLEAN, regimes.SHOCK):
+        column = f"{regime}_n"
+        if column not in table.columns or table[column].empty:
+            return {}
+        counts[regime] = int(table[column].max())
+    return counts
+
+
+def _pairwise_shares(
+    bootstrap_path: str | Path,
+) -> tuple[dict[tuple[str, str, str], float], float | None]:
+    """``p_beats`` keyed by (model, opponent, regime), plus the declared level."""
+    try:
+        path = Path(bootstrap_path)
+        if not path.exists():
+            return {}, None
+        boot = pd.read_csv(path)
+    except Exception:  # noqa: BLE001 - the README must render without it
+        return {}, None
+    if "statistic" not in boot.columns:
+        return {}, None
+
+    rows = boot[boot["statistic"] == "p_beats"]
+    if rows.empty:
+        return {}, None
+    shares = {
+        (str(r.model), str(r.opponent), str(r.regime)): float(r.point)
+        for r in rows.itertuples()
+    }
+    confidence = None
+    if "confidence" in rows.columns and rows["confidence"].notna().any():
+        confidence = float(rows["confidence"].dropna().iloc[0])
+    return shares, confidence
+
+
+def _ablation_verdicts(
+    verdicts: list[tuple["models.Ablation", dict[str, float]]],
+    shares: dict[tuple[str, str, str], float],
+    confidence: float | None,
+    counts: dict[str, int] | None = None,
+) -> list[str]:
+    """One line per pair, then an honest count of how many are actually resolved.
+
+    The lines describe the *sign* of each difference, not its importance. A gap
+    in the third decimal has a sign too, and calling it "helps" would dress a
+    rounding difference as a recommendation; the resolved count below is what
+    says which of these the record can actually settle.
+    """
+    clean, shock = regimes.CLEAN, regimes.SHOCK
+    lines = []
+    resolved = 0
+    flipped = []
+
+    for ablation, deltas in verdicts:
+        helps_clean = deltas[clean] < 0
+        helps_shock = deltas[shock] < 0
+        if helps_clean != helps_shock:
+            flipped.append(ablation)
+            direction = (
+                "better on clean months, worse on shock ones"
+                if helps_clean
+                else "better on shock months, worse on clean ones"
+            )
+            tail = f"the sign flips between regimes — {direction}."
+        elif helps_clean:
+            tail = "lower error in both regimes."
+        else:
+            tail = (
+                "higher error in both regimes. It is here because it was tried, "
+                "not because it worked."
+            )
+        lines.append(f"- **{ablation.varies.capitalize()}** — {tail}")
+
+        if confidence is not None:
+            for regime in (clean, shock):
+                share = shares.get((ablation.treatment, ablation.control, regime))
+                # Symmetric on purpose: the pair is resolved if EITHER arm
+                # reached the level. Writing the lower bound as
+                # `share <= 1 - confidence` puts a float subtraction on
+                # the boundary and drops the exact case.
+                if share is not None and (share >= confidence or (1.0 - share) >= confidence):
+                    resolved += 1
+
+    lines.append("")
+
+    if flipped and len(flipped) == len(verdicts):
+        lines += [
+            "Every one of these choices trades one regime against the other. "
+            "That is the headline finding reappearing inside pairs of models "
+            "differing by a single decision: on this record there is no design "
+            "choice here that is simply better, only choices that are better "
+            "somewhere.",
+            "",
+        ]
+    elif flipped:
+        names = ", ".join(f"**{a.varies}**" for a in flipped)
+        lines += [
+            f"{len(flipped)} of {len(verdicts)} choices trade one regime against "
+            f"the other ({names}) — the headline finding reappearing inside a "
+            "pair of models differing by a single decision.",
+            "",
+        ]
+
+    calendar = next(
+        (a for a, d in verdicts if a.name == "calendar" and (d[clean] < 0) != (d[shock] < 0)),
+        None,
+    )
+    if calendar is not None:
+        basis = (
+            f"{counts[shock]:,} shock forecasts" if counts and shock in counts
+            else "the shock forecasts in this record"
+        )
+        lines += [
+            "The calendar pair is worth reading twice, because the calendar "
+            "layer is this project's largest single investment. A festival "
+            "regressor asserts a surge on a date the ephemeris computed, and a "
+            "closure or a flood does not move that date — the feature goes on "
+            "predicting an arrival pattern that policy or the weather has "
+            "cancelled. The sign above is consistent with that.",
+            "",
+            f"**It is an observation, not a basis to build on.** It is one pair "
+            f"of models on {basis} from a single shrine, and it is not among "
+            "the comparisons that clear the declared level below. The obvious "
+            "thing to do with it — route calendar features by regime, so the "
+            "model drops them once it thinks it is in a shock — has "
+            "deliberately not been built. Doing so would fit a mechanism to a "
+            "difference this record cannot resolve, and the resulting model "
+            "would then be scored on the same disrupted months that suggested "
+            "it. What would justify building it is more disrupted months, from "
+            "a site whose disruptions are not these ones.",
+            "",
+        ]
+
+    if confidence is not None:
+        total = 2 * len(verdicts)
+        verb = "clears" if resolved == 1 else "clear"
+        lines += [
+            f"Of the {total} pair-and-regime comparisons above, **{resolved}** "
+            f"{verb} the bootstrap's declared {confidence:.0%} level in one "
+            "direction or the other. The rest are directional and unresolved by "
+            "this record, and are reported as such rather than as findings.",
+            "",
+        ]
+    return lines
+
+
+def _calendar(
+    config_path: str | Path = "experiments/configs/calendar.yaml",
+    festivals_path: str | Path = "results/festivals.csv",
+    calendar_path: str | Path = "results/calendar.csv",
+) -> list[str]:
+    """What the calendar layer is actually made of.
+
+    ``sarimax_cal`` wins the clean regime and is one arm of the ablation above,
+    so a reader judging either result needs to know what its features contain.
+    "The calendar layer" sounds like an almanac; it is a handful of festivals,
+    and saying which ones is the difference between a claim a reader can audit
+    and one they have to take on trust.
+
+    Every value here is read from the config that produced the dates or from
+    the dates themselves. Nothing about the calendar is typed into this file --
+    which is the same rule as the rest of the section, and doubly so here,
+    where a hardcoded date table is a spec violation (brief constraint 6).
+    """
+    try:
+        config = yaml.safe_load(Path(config_path).read_text(encoding="utf-8")) or {}
+    except Exception:  # noqa: BLE001 - the README must render without it
+        return []
+    festivals = config.get("festivals") or []
+    if not festivals:
+        return []
+
+    span = config.get("range") or {}
+    ephemeris = config.get("ephemeris") or {}
+    location = config.get("location") or {}
+
+    resolved = _row_count(festivals_path)
+    lines = [
+        "### What the calendar layer contains",
+        "",
+        "`sarimax_cal` wins the clean regime and is one arm of the ablation "
+        "above, so what its features are made of is part of reading both "
+        "results. The dates are computed from an ephemeris — there is no date "
+        "table in `src/` — under the declarations below.",
+        "",
+        "| | |",
+        "|---|---|",
+        f"| Backend | `{config.get('backend', '—')}`"
+        + (f" ({ephemeris['kernel']})" if ephemeris.get("kernel") else "")
+        + " |",
+        f"| Ayanamsa | {config.get('ayanamsa', '—')} |",
+        f"| Lunar month scheme | {config.get('lunar_month_scheme', '—')} |",
+        f"| Reference location | {location.get('name', '—')} |",
+        f"| Span computed | {span.get('start', '—')} to {span.get('end', '—')} |",
+    ]
+    if resolved is not None:
+        lines.append(f"| Festival dates resolved | {resolved:,} |")
+    lines += [
+        "",
+        f"**{len(festivals)} festivals, not a general almanac.** The civil-day "
+        "rule is declared per festival because it genuinely differs, and it "
+        "decides more dates than any plausible disagreement between "
+        "ephemerides does.",
+        "",
+        "| Festival | Tithi rule | Civil-day rule | Duration |",
+        "|---|---|---|---:|",
+    ]
+    for entry in festivals:
+        rule = entry.get("rule") or {}
+        tithi = " ".join(
+            str(rule.get(key, "?")) for key in ("month", "paksha", "tithi")
+        )
+        duration = entry.get("duration_days")
+        lines.append(
+            f"| {entry.get('label', entry.get('id', '?'))} | {tithi} | "
+            f"{rule.get('observance', '—')} | "
+            f"{f'{int(duration)} day' + ('s' if int(duration) != 1 else '') if duration else '—'} |"
+        )
+    lines.append("")
+
+    features = config.get("features") or []
+    if features:
+        named = ", ".join(f"`{name}`" for name in features)
+        lines += [
+            f"The monthly columns handed to the model are {named}. Each is a "
+            "function of the calendar alone and touches no observation, so none "
+            "of them can carry a future footfall value into a forecast.",
+            "",
+        ]
+
+    coverage = _calendar_coverage(calendar_path, features)
+    if coverage is not None:
+        months, with_festival, still_live = coverage
+        sentence = (
+            f"Across the {months:,} months in the feature frame, "
+            f"**{with_festival:,}** carry at least one festival day."
+        )
+        quiet = months - with_festival
+        if still_live:
+            named = ", ".join(f"`{name}`" for name in still_live)
+            sentence += (
+                f" In the other {quiet:,} the festival counts are zero, so "
+                f"whatever the arm contributes there comes from {named}."
+            )
+        else:
+            sentence += (
+                f" In the other {quiet:,} every calendar column is zero, so the "
+                "arm and its control see identical inputs."
+            )
+        lines += [sentence, ""]
+    return lines
+
+
+def _row_count(path: str | Path) -> int | None:
+    try:
+        p = Path(path)
+        if not p.exists():
+            return None
+        return int(len(pd.read_csv(p)))
+    except Exception:  # noqa: BLE001 - the README must render without it
+        return None
+
+
+def _calendar_coverage(
+    path: str | Path, features: list[str]
+) -> tuple[int, int, list[str]] | None:
+    """How much of the series the calendar actually touches.
+
+    Returns ``(months, months_with_a_festival_day, still_live)``, where
+    ``still_live`` names the declared feature columns that are non-zero in at
+    least one festival-free month. Those are what separates the calendar arm
+    from its control in the months no festival falls in, and asserting the
+    columns all go quiet there without checking would be wrong: a drift term
+    keeps moving whether or not a festival lands.
+    """
+    try:
+        p = Path(path)
+        if not p.exists():
+            return None
+        frame = pd.read_csv(p)
+    except Exception:  # noqa: BLE001 - the README must render without it
+        return None
+    if "festival_days" not in frame.columns or frame.empty:
+        return None
+
+    quiet = frame[frame["festival_days"] <= 0]
+    still_live = [
+        name
+        for name in features
+        if name in quiet.columns
+        and pd.to_numeric(quiet[name], errors="coerce").fillna(0).ne(0).any()
+    ]
+    return int(len(frame)), int((frame["festival_days"] > 0).sum()), still_live
+
+
 def _applicability(path: str | Path = "results/applicability.csv") -> list[str]:
     """Models that could not be fit at all. An absence that has to be visible.
 
@@ -356,6 +961,10 @@ def render(
         + _regime_counts(frame)
         + leaderboard
         + _inversion(frame, table)
+        + _sensitivity()
+        + _by_horizon(frame)
+        + _ablations(table)
+        + _calendar()
         + _applicability()
         + _caveats(shocks_config)
     )

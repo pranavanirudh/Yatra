@@ -191,6 +191,60 @@ def rank_shift(table: pd.DataFrame, path: Path) -> Path:
     return _save(fig, path)
 
 
+def horizon_profile(frame: pd.DataFrame, path: Path, metric: str = "mase") -> Path:
+    """Each model's score against forecast lead time, one panel per regime.
+
+    The leaderboard pools h=1..6. If the inversion lived only at the long
+    horizons, the pooled table would look identical and a planner forecasting
+    one month out would be reading a claim that did not apply to them. Two
+    panels, so the crossing is visible at every lead time or not at all.
+
+    The panels do **not** share a y-axis. Shock-month errors are several times
+    larger, and forcing one scale would flatten the clean panel into a line.
+    The axis labels carry the scales; the comparison being made here is within
+    a panel, not across them.
+    """
+    if "horizon" not in frame.columns:
+        raise ConfigError("Scored frame has no 'horizon' column to profile.")
+    present = [r for r in (regimes.CLEAN, regimes.SHOCK) if (frame["regime"] == r).any()]
+    if len(present) < 2:
+        raise ConfigError(
+            f"Only regime(s) {present} present, so there is no per-horizon "
+            "comparison to draw."
+        )
+
+    pooled = frame.pivot_table(index="model", columns="regime", values=metric, aggfunc="mean")
+    ordered = list(pooled.sort_values(regimes.CLEAN).index)
+    palette = plt.get_cmap("tab10")
+    colours = {model: palette(i % 10) for i, model in enumerate(ordered)}
+
+    fig, axes = plt.subplots(1, 2, figsize=(11.0, 4.6))
+    for ax, regime in zip(axes, (regimes.CLEAN, regimes.SHOCK)):
+        subset = frame[frame["regime"] == regime]
+        grid = subset.pivot_table(index="horizon", columns="model", values=metric, aggfunc="mean")
+        for model in ordered:
+            if model not in grid.columns:
+                continue
+            ax.plot(grid.index, grid[model], marker="o", markersize=3.5,
+                    linewidth=1.6, color=colours[model], label=model)
+        ax.set_xlabel("forecast horizon (months ahead)")
+        ax.set_ylabel(f"mean {metric.upper()} (lower is better)")
+        ax.set_xticks(sorted(int(h) for h in grid.index))
+        ax.set_title(f"{regime} months")
+        _style(ax)
+
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="lower center", ncol=min(len(labels), 5), fontsize=8,
+               frameon=False, bbox_to_anchor=(0.5, -0.02))
+    fig.suptitle("Does the ranking invert at every lead time?", fontsize=11)
+    fig.tight_layout(rect=(0, 0.09, 1, 1))
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(path, dpi=DPI)
+    plt.close(fig)
+    return path
+
+
 def bootstrap_intervals(frame: pd.DataFrame, path: Path) -> Path:
     """Per-regime means with their bootstrap intervals, and the rho interval.
 
@@ -272,6 +326,7 @@ def build_all(
         forecast_vs_actual(frame, windows, directory / "forecast_vs_actual_h1.png", horizon=1),
         regime_ranking(table, directory / "regime_ranking.png"),
         rank_shift(table, directory / "rank_shift.png"),
+        horizon_profile(frame, directory / "horizon_profile.png"),
     ]
     if bootstrap_frame is not None and not bootstrap_frame.empty:
         written.append(
