@@ -24,7 +24,7 @@ section below is generated from `results/metrics.csv`, and every figure in
 | Stage | State |
 |---|---|
 | Data contract | observations loaded, contiguous, annual totals reconciling |
-| Shock windows | declared with citations — **awaiting owner verification** |
+| Shock windows | declared with citations — **owner verification part-complete** |
 | Model registry | complete; one model reported as unfittable rather than dropped |
 | Backtest harness | run; one origin set, shared MASE denominator |
 | Calendar layer | computed from the ephemeris, validated against published almanacs |
@@ -35,10 +35,11 @@ section below is generated from `results/metrics.csv`, and every figure in
 | Crowd-planning briefing | written; **awaiting site planning ratios** |
 
 Two items are open and neither is code. The shock-window citations were drafted
-from public reporting and have not been checked against the sources; until they
-are, the regime split rests on an unaudited boundary, and the generated section
-says so. And the briefing ships with no resourcing ratios, because those are
-site policy rather than model output.
+from public reporting; the owner has since checked some of them against the
+sources, and the rest are still outstanding. Until they all are, the regime
+split rests in part on an unaudited boundary — the generated section says so
+and names which windows are still unverified. And the briefing ships with no
+resourcing ratios, because those are site policy rather than model output.
 
 There are no placeholder numbers anywhere in this file, and there will not be
 any: the results section is written by `src/yatra/report.py` directly from
