@@ -390,7 +390,7 @@ It was not quietly replaced with the additive variant. Doing so would put a numb
 
 ### Caveat: unverified shock windows
 
-5 of 5 declared shock windows carry citations that the project owner has not yet checked against the source: `covid_closure`, `covid_recovery_pre_delta`, `delta_wave`, `covid_recovery_post_delta`, `floods_2025`. The dates were drafted from public reporting. Until they are verified, the regime split — and therefore every number above — rests on an unaudited boundary.
+3 of 5 declared shock windows carry citations that the project owner has not yet checked against the source: `covid_recovery_pre_delta`, `delta_wave`, `covid_recovery_post_delta`. The dates were drafted from public reporting. Until they are verified, the regime split — and therefore every number above — rests on an unaudited boundary.
 
 <!-- END GENERATED -->
 

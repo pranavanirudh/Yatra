@@ -11,15 +11,22 @@
 # about which months were disrupted, and the whole finding is a comparison
 # between the two sides of that line.
 #
-# STATUS 2026-08-19: audited by the project owner. `article_370` was withdrawn
-# (see the rejected-candidate block below), the COVID block was split into its
-# closure, delta and recovery phases, and the citations for the surviving
-# windows were replaced with owner-supplied ones.
+# STATUS 2026-08-20: partially audited. `article_370` was withdrawn and the
+# COVID block was split into its closure, delta and recovery phases.
 #
-# `verified` remains false on every window. The owner supplied the citations
-# below but has not recorded having read each source against the dates, and
-# this flag means precisely that check and nothing looser. While any window is
-# false, report.py stamps the README with the unaudited-boundary caveat.
+# `verified: true` on `covid_closure` and `floods_2025` only. Those two were
+# checked by the project owner against primary reporting. The other three
+# remain false and the README caveat therefore reports a PARTIAL audit rather
+# than disappearing -- which is the accurate state, and the reason the flag is
+# per-window rather than per-file.
+#
+# Why the recovery and delta windows stay false: they are a subdivision of the
+# COVID block made in this repository, and the citation that was verified
+# evidences the CLOSURE -- five months from March 2020, reopening 16 August.
+# It says nothing about where recovery ends, where the delta wave begins, or
+# whether 2021-12 is the right place to stop. Those boundaries are this
+# project's judgement and have not been checked against anything, so marking
+# them verified would launder a judgement into a citation.
 #
 # ---------------------------------------------------------------------------
 # REJECTED CANDIDATE: article_370 (was 2019-08..2019-10)
@@ -39,7 +46,7 @@
 #
 # The dip fades to nothing within two months. Set against the months in this
 # file that are unambiguously disrupted -- 2020-04 at -100%, 2021-05 at -94%
-# year-on-year, 2025-09 at -73% -- it is ordinary year-to-year variation.
+# against 2019-05, 2025-09 at -73% -- it is ordinary year-to-year variation.
 #
 # Declaring it would have been inferring a shock from the TIMING of a political
 # event rather than from observed disruption in the series. That inference is
@@ -80,7 +87,11 @@ windows:
     label: "COVID-19 total closure and capped reopening"
     start: 2020-03
     end: 2020-10
-    verified: false
+    # VERIFIED 2026-08-20 by the project owner against Kashmir Observer
+    # (29 Dec 2025) and the SMVDSB monthly figures. The closure dates and the
+    # four zero months are the facts checked; see the header for why the
+    # recovery boundaries are not covered by this.
+    verified: true
     rationale: >
       Yatra suspended 18 March 2020. The shrine was closed for five months and
       reopened to pilgrims on 16 August 2020, initially under a cap of 2,000
@@ -200,7 +211,10 @@ windows:
     label: "J&K security shock and monsoon landslide closure (compound)"
     start: 2025-05
     end: 2025-09
-    verified: false
+    # VERIFIED 2026-08-20 by the project owner against primary reporting:
+    # Rising Kashmir (27 Aug 2025) for the landslide, Deccan Herald / PTI
+    # (17 Sep 2025) for the resumption, and the SMVDSB monthly figures.
+    verified: true
     rationale: >
       Compound disruption, and the window is anchored on the FIRST of its two
       causes. It was originally declared 2025-08..2025-09, anchored on the
@@ -213,13 +227,30 @@ windows:
       to 926,263 once a sense of security returned, so the security shock is
       concentrated in May rather than sustained.
 
-      Second, the track. The Ardhkuwari landslide of 26 August 2025 killed 34
-      pilgrims and suspended the yatra for close to three weeks in what is
-      normally a high-traffic period. September 2025 recorded 185,165 against
-      678,487 in September 2024, a fall of 73%, in the Navratri month -- its
-      lowest non-COVID value in the record.
+      Second, the track. The Ardhkuwari landslide of 26 August 2025 was
+      triggered by a cloudburst near Indraprastha Bhojnalaya, at the midpoint
+      of the 12 km trek from Katra to the shrine. It killed 34 pilgrims and
+      injured 20. The yatra was suspended on 26 August and resumed on
+      17 September: a 22-day halt, in what is normally a high-traffic period.
+      September 2025 recorded 185,165 against 678,487 in September 2024, a fall
+      of 73%, in the Navratri month -- its lowest non-COVID value in the record.
 
-      The annual total was 69.79 lakh, down 26.4% from 94.84 lakh in 2024.
+      DEATH TOLL, RESOLVED: 34. Earlier figures of 30 and 32 were
+      recovery-in-progress counts; the search was formally called off with no
+      missing persons at 34, and PTI still reported 34 at the resumption three
+      weeks later. A previous version of this rationale said 35. Nothing in
+      this project computes from the figure, but a citation file that carries a
+      wrong number is not doing its job.
+
+      ANNUAL FALL, 26.4% NOT 27.4%: the 2025 total was 69.79 lakh against
+      94.84 lakh in 2024. Those are the SMVDSB figures this project ingests,
+      and 6,978,806 against 9,484,182 is a fall of 26.4%. The 27.4% figure that
+      appears in some reporting does not reconcile with them -- it implies a
+      2024 total near 96.13 lakh, so it is presumably computed against a
+      different published total. The verified figure is used here because
+      data/raw/annual.csv is the series every other number in this project is
+      measured on, and a config that contradicted it would be the kind of
+      quiet inconsistency the contract exists to prevent.
 
       Both causes are inside one window because both suppressed the same series
       in the same year, and a window covering only the landslide would put the
@@ -229,17 +260,12 @@ windows:
       them is the arguable part of this declaration.
       `shocks_refined.yaml` is where that boundary is tested.
 
-      UNRESOLVED, for the owner: the landslide death toll is recorded as 34 in
-      the owner-supplied citation and as 35 in the reporting the previous
-      rationale drew on. Nothing in this project depends on the figure -- it
-      appears in no computation -- but it should be settled against the source
-      before the window is marked verified.
-      CITATION NOT YET CARRIED: the owner also named "Daily Pioneer,
-      15 Dec 2025" as a source for this window. No URL for it is on record, and
-      a citation requires one -- so it is named here in the rationale rather
-      than written into the `source` block below with a URL nobody has checked.
-      Supply the URL and it becomes the primary citation; inventing a plausible
-      one would defeat the purpose of requiring citations at all.
+      CITATIONS NOT YET CARRIED: the owner verified this window against
+      Rising Kashmir (27 Aug 2025) and Deccan Herald / PTI (17 Sep 2025). No
+      URL for either is on record, and a citation requires one, so they are
+      named here rather than written into the `source` block with a URL nobody
+      has checked. Supply either URL and it becomes the primary citation. The
+      block below carries the reporting for which a checked URL exists.
     source:
       publisher: Kashmir Observer
       title: "Pilgrim Numbers Decline at Vaishno Devi Due to Security, Weather Issues (published 29 Dec 2025)"
@@ -250,6 +276,38 @@ windows:
       title: "Yatra Statistics - month-wise break-up of Yatra from 1986"
       url: https://www.maavaishnodevi.org/yatrastatistics
       accessed: 2026-08-18
+
+# ---------------------------------------------------------------------------
+# REJECTED CANDIDATE: 2022 New Year stampede (would have been 2022-01)
+# ---------------------------------------------------------------------------
+# Not declared. Kept here because it is the most useful negative control in
+# this file: it is the case that separates "something terrible happened" from
+# "the series was disrupted", and those are not the same claim.
+#
+# A stampede near the shrine on 1 January 2022 killed 12 people. The monthly
+# series does not register it as a disruption:
+#
+#     2022-01   438,521      2023-01   524,189      = -16.3%
+#
+# Compare the falls the declared windows contain: -100% (2020-04), -94%
+# (2021-05 against 2019-05), -73% (2025-09). January 2022 is a month with fewer
+# pilgrims than the January after it, in a period still recovering from COVID
+# and coinciding with the national omicron wave -- neither of which is the
+# stampede either. There is no collapse to attribute.
+#
+# WHY THIS IS THE USEFUL REJECTION. The article_370 rejection turned on a
+# political event that did not move the series. This one turns on a FATAL
+# event that did not move the series, which is the harder case: the pull to
+# declare a window is strongest when people have died, and severity of an
+# incident is not the same quantity as disruption of a monthly total. A single
+# day's tragedy inside a month of ordinary throughput is invisible at monthly
+# resolution, and labelling it a shock would put an ordinary month in the
+# shock bucket and flatter whichever model happens to do well on it.
+#
+# That invisibility is itself a limitation worth stating rather than hiding:
+# this project cannot see a peak-day crush, and the briefing says so. The
+# stampede is exactly the event class it is blind to. Declaring a window here
+# would have been claiming a sensitivity the monthly series does not have.
 
 # Months not covered by any window above are "clean". There is no third
 # category. A month is scored on the regime it belongs to at the TARGET date,

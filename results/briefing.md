@@ -49,4 +49,4 @@ The range above is measured on **ordinary** months. Months inside a declared sho
 | Band | empirical, 90% of backtest errors |
 | Clean-month errors used | 2010 |
 | Shock-month errors used | 162 |
-| Shock windows | `90f315ecdcf3` |
+| Shock windows | `3e176f06087d` |
