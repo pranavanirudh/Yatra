@@ -495,53 +495,102 @@ def _answer_inversion(art: Artefacts) -> Answer:
 
 
 def _answer_accuracy(art: Artefacts) -> Answer:
-    table = leaderboard(art.metrics)
+    """How wrong the forecasts are, in the units a reader actually thinks in.
+
+    The MASE denominator is the seasonal-naive error measured **in-sample on the
+    training window** (CLAUDE.md 3.2), which is not the same quantity as the
+    error seasonal-naive posts as a forecaster. An earlier version of this
+    answer read a MASE above 1 as "worse than using last year's same month" and
+    said so on the card. It is not: the `seasonal_naive` model is scored on this
+    same page and lands well above 1 itself.
+
+    So the baseline comparison here is model against model, taken from the
+    leaderboard, and the headline is a percentage error, because that is the
+    thing a planner can act on.
+    """
+    frame = art.metrics
+    table = leaderboard(frame)
     best_clean = str(table["clean"].idxmin())
     clean = float(table.loc[best_clean, "clean"])
     shock = float(table.loc[best_clean, "shock"])
-    origins = int(art.metrics["origin"].nunique())
-    horizons = sorted(int(h) for h in art.metrics["horizon"].unique())
-    interval = _bootstrap_value(art.bootstrap, "mean_mase", model=best_clean,
-                                regime=regimes.CLEAN)
-    band = ""
-    if interval is not None:
-        band = (
-            " Resampling the record puts that figure between "
-            f"{_num(float(interval['lo']))} and {_num(float(interval['hi']))}."
+    origins = int(frame["origin"].nunique())
+    horizons = sorted(int(h) for h in frame["horizon"].unique())
+
+    mine = frame[frame["model"] == best_clean].copy()
+    mine["ape"] = (mine["ae"] / mine["actual"].replace(0, pd.NA)) * 100
+    clean_rows = mine[mine["regime"] == regimes.CLEAN]
+    shock_rows = mine[mine["regime"] == regimes.SHOCK]
+
+    rows = []
+    for horizon in horizons:
+        at = clean_rows[clean_rows["horizon"] == horizon]
+        rows.append([
+            f"{horizon} month" + ("s" if horizon > 1 else "") + " ahead",
+            f"{at['ape'].median():.1f}%",
+            f"{(at['ape'] <= 10).mean() * 100:.0f}%",
+            f"{(at['ape'] <= 25).mean() * 100:.0f}%",
+        ])
+
+    baseline = "seasonal_naive"
+    baseline_note = ""
+    if baseline in table.index:
+        baseline_note = (
+            "<p>A note on that scale, because it is easy to misread and this page "
+            "got it wrong once. The denominator is the seasonal-naive error "
+            "measured <em>inside the training window</em>, not the error "
+            "seasonal-naive posts as a forecaster. So a score above 1 does "
+            "<strong>not</strong> mean the model is beaten by last-year's-same-"
+            f"month. Actually forecasting with last year's same month scores "
+            f"<strong>{_num(float(table.loc[baseline, 'clean']), 2)}</strong> on "
+            f"ordinary months against this model's "
+            f"<strong>{_num(clean, 2)}</strong> &mdash; the model is ahead of it, "
+            "by about "
+            f"{(1 - clean / float(table.loc[baseline, 'clean'])) * 100:.0f}%. The "
+            "number is for comparing models against each other, which is the only "
+            "thing this project uses it for.</p>"
         )
+
     return Answer(
         id="accuracy",
         question="How accurate is this, really?",
         headline=(
-            "On ordinary months the forecasting model carries about <strong>"
-            f"{_num(clean, 2)}&times;</strong> the error of the simplest seasonal "
-            f"rule. On disrupted months it is <strong>{_num(shock, 2)}&times;"
-            "</strong> &mdash; substantially worse."
+            "On an ordinary month one step ahead, the forecast is typically within "
+            f"<strong>{clean_rows[clean_rows['horizon'] == min(horizons)]['ape'].median():.0f}%</strong> "
+            "of what happens. On a disrupted month it is typically out by "
+            f"<strong>{shock_rows['ape'].median():.0f}%</strong>."
         ),
         body=(
-            "<p>The scale is <strong>MASE</strong>: error measured against a naive "
-            "baseline that just repeats the same month from last year. Below 1 "
-            "beats that baseline, above 1 loses to it. It is used because it is "
-            f"unit-free, so the two regimes can be compared at all.{band}</p>"
-            "<p>Read the honest version of that. On ordinary months this model is "
-            "worse than last-year's-same-month, and on disrupted months it is much "
-            "worse. Nothing here predicts a shrine closure. What the system is "
-            "actually worth is the <em>range</em> it puts around a month, and the "
-            "fact that it reports how badly it does when things go wrong instead "
-            "of showing a single confident number.</p>"
-            "<p>None of it is scored on data it was fitted on. Every figure comes "
-            f"from a rolling backtest: <strong>{origins:,}</strong> separate "
+            "<p>Half of all forecasts land inside the first figure below and half "
+            "outside it, so read the last two columns too: they are the share of "
+            "months that came in close.</p>"
+            + _table(
+                ["Lead time", "Typical error", "Within 10%", "Within 25%"],
+                rows,
+                ["left", "right", "right", "right"],
+            )
+            + "<p>Accuracy decays with lead time, as it should, but gently. What "
+            "does not decay gently is the regime: the same model on disrupted "
+            f"months is out by {shock_rows['ape'].median():.0f}% at the median, "
+            "and that is the number worth carrying around. <strong>Nothing here "
+            "predicts a shrine closure.</strong> What the system is worth is the "
+            "range it puts around a month and its honesty about how far that "
+            "range widens when things go wrong.</p>"
+            + baseline_note
+            + "<p>Scored on the same footing everywhere in this project: "
+            f"<strong>{clean:.2f}</strong> mean MASE on ordinary months and "
+            f"<strong>{shock:.2f}</strong> on disrupted ones. None of it is "
+            "measured on data the model was fitted on &mdash; every figure comes "
+            f"from a rolling backtest of <strong>{origins:,}</strong> separate "
             f"forecast origins, each forecasting {min(horizons)} to "
             f"{max(horizons)} months past what it was allowed to see.</p>"
         ),
         keywords=("accurate", "accuracy", "reliable", "trust", "error", "wrong",
                   "mase", "confidence", "how well", "performance", "validated",
-                  "backtest", "tested", "proof", "good", "believe"),
+                  "backtest", "tested", "proof", "good", "believe", "off by"),
         sources=(
             Source("results/metrics.csv",
-                   f"every scored forecast for {best_clean}, split by regime"),
-            Source("results/bootstrap.csv",
-                   f"the mean_mase interval for {best_clean}"),
+                   f"all {len(mine):,} scored forecasts for {best_clean}, "
+                   "by regime and horizon"),
         ),
         chip="How accurate is this, really?",
     )
