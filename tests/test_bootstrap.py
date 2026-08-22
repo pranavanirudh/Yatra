@@ -19,12 +19,25 @@ from yatra.errors import ConfigError
 
 
 def metrics_frame(n_origins: int = 40, shock_every: int = 5) -> pd.DataFrame:
-    """A probe metrics table. Model 'winner' is better on clean, worse on shock."""
+    """A probe metrics table. Model 'winner' is better on clean, worse on shock.
+
+    Carries ``shock_window`` because real backtest output always does: a shock
+    row names the window it fell in and a clean row leaves it empty. The column
+    was missing here once, and the consumer that needed it raised a bare
+    KeyError against a fixture that did not look like the thing it stands in
+    for. Two windows rather than one, so a per-window comparison is not
+    degenerate.
+    """
     rng = np.random.default_rng(3)
+    shock_windows = ("probe_window_a", "probe_window_b")
     rows = []
+    shock_seen = 0
     for origin in range(n_origins):
         shock = origin % shock_every == 0
         regime = regimes.SHOCK if shock else regimes.CLEAN
+        window = shock_windows[shock_seen % len(shock_windows)] if shock else None
+        if shock:
+            shock_seen += 1
         for horizon in (1, 2, 3):
             for name, clean_err, shock_err in (
                 ("winner", 0.5, 4.0),
@@ -40,6 +53,7 @@ def metrics_frame(n_origins: int = 40, shock_every: int = 5) -> pd.DataFrame:
                         "model": name,
                         "regime": regime,
                         "mase": abs(base + rng.normal(0, 0.05)),
+                        "shock_window": window,
                     }
                 )
     return pd.DataFrame(rows)

@@ -361,6 +361,59 @@ The two models the finding turns on do not move: `sarimax_cal` ranks first on cl
 Models whose clean rank moves between window sets: `holt_winters_add`, `switching`.
 Models whose shock rank moves between window sets: `holt_winters_add`, `seasonal_naive`, `switching`, `switching_sticky`.
 
+### Is "shock" one thing?
+
+The split above is binary, and that is the same averaging this project objects to in the overall leaderboard, one level down. The declared windows are not variations on a theme: they are a cliff to zero, a slow climb, a second cliff inside that climb, and a compound security and landslide event. Below, the same shock forecasts are scored within each window instead of pooled across them.
+
+Mean MASE, rank in brackets. Lower is better.
+
+| Model | Pooled shock | `covid_closure` | `covid_recovery_post_delta` | `covid_recovery_pre_delta` | `floods_2025` | `delta_wave` |
+|---|---|---|---|---|---|---|
+| `drift` | 3.15 (2) | 3.63 (2) | 2.81 (1) | 2.85 (1) | 3.51 (8) | 2.42 (3) |
+| `holt_winters_add` | 5.98 (9) | 8.14 (6) | 4.98 (8) | 6.29 (9) | 3.10 (2) | 6.48 (9) |
+| `naive` | 3.13 (1) | 3.59 (1) | 2.83 (2) | 2.85 (2) | 3.49 (7) | 2.40 (2) |
+| `sarima` | 4.56 (3) | 7.55 (4) | 3.55 (3) | 2.91 (4) | 3.11 (3) | 3.79 (5) |
+| `sarimax_cal` | 4.62 (4) | 7.62 (5) | 3.59 (4) | 3.12 (5) | 3.16 (5) | 3.58 (4) |
+| `seasonal_naive` | 5.72 (7) | 9.66 (9) | 6.35 (9) | 2.86 (3) | 3.61 (9) | 2.27 (1) |
+| `switching` | 5.87 (8) | 8.85 (8) | 4.60 (7) | 5.60 (8) | 2.90 (1) | 5.88 (7) |
+| `switching_sticky` | 5.62 (6) | 8.73 (7) | 3.82 (5) | 5.15 (7) | 3.13 (4) | 5.88 (7) |
+| `theta` | 4.76 (5) | 6.15 (3) | 3.94 (6) | 4.89 (6) | 3.31 (6) | 4.88 (6) |
+| **Forecasts per model** | **162** | **48** | **36** | **30** | **30** | **18** |
+
+**5 windows, 4 different winners.** `covid_closure` &rarr; `naive`; `covid_recovery_post_delta` &rarr; `drift`; `covid_recovery_pre_delta` &rarr; `drift`; `floods_2025` &rarr; `switching`; `delta_wave` &rarr; `seasonal_naive`.
+
+Whether two disruptions agree about which model to use, for every pair of windows:
+
+| Window | Window | Rank correlation | Agree? |
+|---|---|---:|---|
+| `covid_closure` | `covid_recovery_post_delta` | 0.82 | yes |
+| `covid_closure` | `covid_recovery_pre_delta` | 0.53 | yes |
+| `covid_closure` | `floods_2025` | -0.30 | no |
+| `covid_closure` | `delta_wave` | 0.28 | yes |
+| `covid_recovery_post_delta` | `covid_recovery_pre_delta` | 0.63 | yes |
+| `covid_recovery_post_delta` | `floods_2025` | -0.23 | no |
+| `covid_recovery_post_delta` | `delta_wave` | 0.33 | yes |
+| `covid_recovery_pre_delta` | `floods_2025` | -0.82 | no |
+| `covid_recovery_pre_delta` | `delta_wave` | 0.91 | yes |
+| `floods_2025` | `delta_wave` | -0.86 | no |
+
+That table has a block structure. **Every pair of COVID-era windows agrees, and every pair that straddles COVID and a non-COVID disruption disagrees.** The COVID windows are one event subdivided, so their mutual agreement is close to tautological; the part that would carry information is what they collectively disagree with.
+
+The COVID windows supply **81%** of the pooled shock column, so the pooled shock ranking is largely a ranking on one event. On `floods_2025`, `switching` wins and the pooled winner `naive` ranks 7 of 9.
+
+**That block rests on 1 non-COVID window (`floods_2025`), and it cannot carry the weight the picture suggests.** The 4 negative correlations in the table are not 4 independent pieces of evidence: every one of them involves `floods_2025`, so they are one window compared 4 times. The apparent block is what 4 subdivisions of a single event and 1 other would look like whether or not disruption type matters at all.
+
+Two claims are indistinguishable on this panel, and they are not the same claim:
+
+1. COVID-era disruptions call for different models than non-COVID disruptions do.
+2. `floods_2025` happens to have an idiosyncratic winner.
+
+The obvious mechanism for the second &mdash; that `switching` suits this kind of shock because of how it is built &mdash; is a **hypothesis fitted to one window**, not a finding. It is written down here so it can be tested later, and it is not evidence for itself. What would separate the two claims is a second non-COVID disruption, from this site or another.
+
+The heatmap in `results/figures/` shows this contrast as a clean block of colour. That cleanliness is a property of having one window on one side, not of the strength of the evidence, and it should not be read as the latter.
+
+**Read all of this against the counts.** The thinnest window carries 18 forecasts per model. No single column above is resolvable on its own, and none of these orderings is offered as one: the bootstrap intervals reported earlier are already wide on the 162 pooled shock forecasts and would be wider still here. What the section supports is the pattern across columns, not any cell in them. A second site whose disruptions are not these ones is what would settle it, and [docs/second_site.md](docs/second_site.md) records why none was added.
+
 ### Does the finding survive at every forecast lead time?
 
 The leaderboard above pools h=1 through h=6. A planner reading the briefing is reading one lead time, not the average of six. Here the same forecasts are split by horizon.

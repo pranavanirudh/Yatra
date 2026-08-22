@@ -195,6 +195,34 @@ Routing is exercised through the real matcher in node (`tests/ui_probe.js`),
 because "answers the wrong question confidently" is not a property any assertion
 about the HTML can catch. If node is absent those tests skip; nothing else does.
 
+### 3.9 The per-window shock section states a pattern, never a cell
+
+`report._by_shock_type()` unpools the shock leaderboard into the individual
+declared windows. It is the same objection this project raises against the
+overall leaderboard, applied one level down: "shock" is a cliff to zero, a
+slow climb, a second cliff inside that climb, and a compound security-and-
+landslide event, and averaging them produces an ordering no single disruption
+need resemble.
+
+Two rules hold it honest, and both are the kind a later edit would flatten:
+
+**The block-structure sentence is conditional.** It claims every COVID pair
+agrees and every straddling pair does not. That is true of the committed
+record; it is not true by construction. The code checks the panel and stays
+silent when the panel does not show it. Turning it into an unconditional
+sentence would make it boilerplate that happens to be right, which is
+indistinguishable from a finding until the data changes.
+
+**A ragged panel returns nothing.** A model absent from one window would have
+its ranks computed over a different model set column to column, and the table
+would look exactly as it does now. That is `RaggedPanel` reappearing at report
+time, and the section refuses rather than ranking incomparable columns.
+
+The per-window counts run to tens, not thousands. No column here is resolvable
+on its own and the section says so in those words; what it supports is the
+pattern across columns. Do not add a bootstrap interval per window to make it
+look settled — on 18 forecasts the interval would span the table.
+
 ## 4. Things that must crash, not warn
 
 A short list, because the temptation to downgrade these to warnings recurs:

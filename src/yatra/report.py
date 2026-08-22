@@ -12,6 +12,7 @@ that produced them no longer runs.
 
 from __future__ import annotations
 
+import itertools
 from pathlib import Path
 
 import pandas as pd
@@ -22,6 +23,15 @@ from .errors import ConfigError
 
 BEGIN = "<!-- BEGIN GENERATED -->"
 END = "<!-- END GENERATED -->"
+
+#: Below this many non-COVID shock windows, any COVID-versus-other contrast in
+#: the per-window section is qualified in the generated text. The COVID windows
+#: are subdivisions of one event, so every "these disagree" correlation is the
+#: same handful of non-COVID windows appearing repeatedly rather than
+#: independent evidence. Three is the point at which the contrast stops being
+#: one window's idiosyncrasy by construction -- it is a floor for *reporting
+#: honestly*, not a significance threshold, and nothing is computed from it.
+NON_COVID_FLOOR = 3
 
 WARNING = (
     "> **Generated section.** Everything between the markers is written by "
@@ -385,6 +395,192 @@ def _sensitivity_movement(per_model: pd.DataFrame) -> list[str]:
                 f"Models whose {column} rank moves between window sets: {names}."
             )
     lines.append("")
+    return lines
+
+
+def _by_shock_type(frame: pd.DataFrame) -> list[str]:
+    """The shock leaderboard, unpooled into the individual windows.
+
+    The clean/shock split is binary, and this section is the same objection
+    this project raises against the overall leaderboard, applied one level
+    down. "Shock" is not one thing here: the declared windows are a cliff to
+    zero, a slow climb, a second cliff inside that climb, and a compound
+    security-and-landslide event. Averaging them produces a single ordering
+    that no individual disruption need resemble.
+
+    Reported whether or not it agrees with the pooled table, for the same
+    reason the horizon split is. If the pooled shock ranking turned out to be
+    driven by one event, the pooled table would look exactly as it does now.
+
+    The per-window counts are small -- tens of forecasts, not thousands -- so
+    an individual ordering here is not resolvable and the section says so. The
+    claim that survives that thinness is the *pattern*: which windows agree
+    with which, and how much of the pooled column one event supplies. Both are
+    counting facts about the panel, not estimates from it.
+    """
+    shock = regimes.SHOCK
+    if "shock_window" not in frame.columns:
+        return []
+
+    rows = frame[(frame["regime"] == shock) & frame["shock_window"].notna()]
+    windows = sorted(rows["shock_window"].unique())
+    if len(windows) < 2:
+        return []
+
+    per_window = rows.groupby(["model", "shock_window"])["mase"].mean().unstack()
+    if per_window.isna().to_numpy().any():
+        # A model absent from a window is a ragged panel, and the ranks below
+        # would silently compare different model sets column to column.
+        return []
+    ranks = per_window.rank(method="min").astype(int)
+    counts = (rows.groupby("shock_window").size() / rows["model"].nunique()).astype(int)
+    pooled = rows.groupby("model")["mase"].mean()
+    pooled_rank = pooled.rank(method="min").astype(int)
+
+    order = sorted(per_window.columns, key=lambda w: -counts[w])
+    lines = [
+        "### Is \"shock\" one thing?",
+        "",
+        "The split above is binary, and that is the same averaging this project "
+        "objects to in the overall leaderboard, one level down. The declared "
+        "windows are not variations on a theme: they are a cliff to zero, a "
+        "slow climb, a second cliff inside that climb, and a compound security "
+        "and landslide event. Below, the same shock forecasts are scored within "
+        "each window instead of pooled across them.",
+        "",
+        "Mean MASE, rank in brackets. Lower is better.",
+        "",
+        "| Model | Pooled shock | "
+        + " | ".join(f"`{w}`" for w in order) + " |",
+        "|---" * (len(order) + 2) + "|",
+    ]
+    for model in per_window.index:
+        cells = " | ".join(
+            f"{_fmt(per_window.loc[model, w], 2)} ({ranks.loc[model, w]})"
+            for w in order
+        )
+        lines.append(
+            f"| `{model}` | {_fmt(pooled[model], 2)} ({pooled_rank[model]}) | "
+            f"{cells} |"
+        )
+    # The counts belong inside the table, beside the numbers they qualify. A
+    # separate one-row table has no header separator and does not render.
+    lines += [
+        "| **Forecasts per model** | **" + str(int(counts.sum())) + "** | "
+        + " | ".join(f"**{counts[w]}**" for w in order) + " |",
+        "",
+    ]
+
+    winners = {w: per_window[w].idxmin() for w in order}
+    distinct = sorted(set(winners.values()))
+    lines += [
+        f"**{len(windows)} windows, {len(distinct)} different winners.** "
+        + "; ".join(f"`{w}` &rarr; `{winners[w]}`" for w in order)
+        + ".",
+        "",
+    ]
+
+    # Which windows agree with which. A block structure here is the finding;
+    # scattered signs would be thin data and would be reported as such.
+    pairs = []
+    for left, right in itertools.combinations(order, 2):
+        try:
+            rho, _ = metrics.rank_correlation(per_window[left], per_window[right])
+        except ValueError:
+            return []
+        pairs.append((left, right, rho))
+
+    lines += [
+        "Whether two disruptions agree about which model to use, for every pair "
+        "of windows:",
+        "",
+        "| Window | Window | Rank correlation | Agree? |",
+        "|---|---|---:|---|",
+    ]
+    for left, right, rho in pairs:
+        verdict = "yes" if rho > 0 else "no"
+        lines.append(f"| `{left}` | `{right}` | {_fmt(rho, 2)} | {verdict} |")
+    lines.append("")
+
+    # The structural claim, stated only if the panel actually shows it -- and
+    # then immediately qualified by how many windows it actually rests on.
+    covid = [w for w in order if "covid" in w or "delta" in w]
+    other = [w for w in order if w not in covid]
+    if covid and other:
+        within = [r for a, b, r in pairs if a in covid and b in covid]
+        across = [r for a, b, r in pairs if (a in covid) != (b in covid)]
+        share = counts[covid].sum() / counts.sum() * 100
+        if within and across and min(within) > 0 and max(across) < 0:
+            lines += [
+                "That table has a block structure. **Every pair of COVID-era "
+                "windows agrees, and every pair that straddles COVID and a "
+                "non-COVID disruption disagrees.** The COVID windows are one "
+                "event subdivided, so their mutual agreement is close to "
+                "tautological; the part that would carry information is what "
+                "they collectively disagree with.",
+                "",
+                f"The COVID windows supply **{share:.0f}%** of the pooled shock "
+                "column, so the pooled shock ranking is largely a ranking on one "
+                f"event. On `{other[0]}`, `{winners[other[0]]}` wins and the "
+                f"pooled winner `{pooled.idxmin()}` ranks "
+                f"{ranks.loc[pooled.idxmin(), other[0]]} of {len(per_window)}.",
+                "",
+            ]
+
+        # The qualification is not conditional on the block claim having been
+        # made. Any COVID-versus-other contrast drawn from this table rests on
+        # the non-COVID windows, and when there are one or two of them the
+        # contrast is one window wearing the clothes of a pattern.
+        if len(other) < NON_COVID_FLOOR:
+            names = ", ".join(f"`{w}`" for w in other)
+            plural = "s" if len(other) > 1 else ""
+            odd = other[0]
+            lines += [
+                f"**That block rests on {len(other)} non-COVID window{plural} "
+                f"({names}), and it cannot carry the weight the picture "
+                f"suggests.** The {len(across)} negative correlations in the "
+                f"table are not {len(across)} independent pieces of evidence: "
+                f"every one of them involves {names}, so they are one window "
+                f"compared {len(across)} times. The apparent block is what "
+                f"{len(covid)} subdivisions of a single event and "
+                f"{len(other)} other{plural} would look like whether or not "
+                "disruption type matters at all.",
+                "",
+                "Two claims are indistinguishable on this panel, and they are "
+                "not the same claim:",
+                "",
+                "1. COVID-era disruptions call for different models than "
+                "non-COVID disruptions do.",
+                f"2. `{odd}` happens to have an idiosyncratic winner.",
+                "",
+                f"The obvious mechanism for the second &mdash; that "
+                f"`{winners[odd]}` suits this kind of shock because of how it "
+                "is built &mdash; is a **hypothesis fitted to one window**, not "
+                "a finding. It is written down here so it can be tested later, "
+                "and it is not evidence for itself. What would separate the two "
+                "claims is a second non-COVID disruption, from this site or "
+                "another.",
+                "",
+                "The heatmap in `results/figures/` shows this contrast as a "
+                "clean block of colour. That cleanliness is a property of "
+                "having one window on one side, not of the strength of the "
+                "evidence, and it should not be read as the latter.",
+                "",
+            ]
+
+    smallest = int(counts.min())
+    lines += [
+        "**Read all of this against the counts.** The thinnest window carries "
+        f"{smallest} forecasts per model. No single column above is resolvable "
+        "on its own, and none of these orderings is offered as one: the "
+        f"bootstrap intervals reported earlier are already wide on the "
+        f"{int(counts.sum())} pooled shock forecasts and would be wider still "
+        "here. What the section supports is the pattern across columns, not any "
+        "cell in them. A second site whose disruptions are not these ones is "
+        "what would settle it, and "
+        "[docs/second_site.md](docs/second_site.md) records why none was added.",
+        "",
+    ]
     return lines
 
 
@@ -962,6 +1158,7 @@ def render(
         + leaderboard
         + _inversion(frame, table)
         + _sensitivity()
+        + _by_shock_type(frame)
         + _by_horizon(frame)
         + _ablations(table)
         + _calendar()

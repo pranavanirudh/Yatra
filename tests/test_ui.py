@@ -257,6 +257,7 @@ ROUTES = (
     ("did any model fail to run", "Did any model fail"),
     ("what counts as a disrupted month", "What counts as a disrupted"),
     ("what if there is a disruption", "What happens to these numbers"),
+    ("do different kinds of disruption behave differently", "Is a disruption a disruption"),
     ("how does this whole thing work", "How does this whole thing"),
     ("how are the festival dates worked out", "How are the festival dates"),
     ("how many pilgrims are expected next month", "Forecast for"),

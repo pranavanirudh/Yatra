@@ -39,7 +39,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import regimes
+from . import regimes, report
 from .errors import ConfigError
 
 RESULTS_DIR = Path("results")
@@ -186,6 +186,10 @@ FIGURE_CAPTIONS: tuple[tuple[str, str, str], ...] = (
     ("bootstrap_intervals.png", "How much of this the record can settle",
      "Block-bootstrap intervals over the origin set. The shock intervals are "
      "the wide ones, because there are far fewer disrupted months."),
+    ("shock_type_agreement.png", "Whether two disruptions agree on the model",
+     "One cell per pair of declared shock windows. Blue is agreement, red is "
+     "disagreement. The COVID windows agree with each other and all of them "
+     "disagree with the 2025 landslide -- that block is the finding."),
     ("horizon_profile.png", "Whether the lead time changes the answer",
      "Error by forecast horizon, within each regime."),
     ("forecast_vs_actual_h1.png", "One month ahead, against what happened",
@@ -833,6 +837,123 @@ def _answer_calendar(art: Artefacts) -> Answer:
     )
 
 
+def _answer_shock_types(art: Artefacts) -> Answer | None:
+    """Whether "disrupted" behaves as one regime or several.
+
+    The console has to carry this, not just the README, because it is the
+    finding that changes what somebody would actually *do*. A planner told
+    "use the naive forecast during disruptions" would have reached for the
+    wrong model in the one disruption in this record that was not COVID.
+    """
+    frame = art.metrics
+    if "shock_window" not in frame.columns:
+        return None
+    rows = frame[(frame["regime"] == regimes.SHOCK) & frame["shock_window"].notna()]
+    per_window = rows.groupby(["model", "shock_window"])["mase"].mean().unstack()
+    if per_window.shape[1] < 2 or per_window.isna().to_numpy().any():
+        return None
+
+    counts = (rows.groupby("shock_window").size() / rows["model"].nunique()).astype(int)
+    ranks = per_window.rank(method="min").astype(int)
+    order = sorted(per_window.columns, key=lambda w: -counts[w])
+    winners = {w: str(per_window[w].idxmin()) for w in order}
+    pooled = rows.groupby("model")["mase"].mean()
+    pooled_winner = str(pooled.idxmin())
+
+    table_rows = [
+        [
+            f"<code>{window}</code>",
+            str(counts[window]),
+            f"<code>{winners[window]}</code>",
+            f"{int(ranks.loc[pooled_winner, window])} of {len(per_window)}",
+        ]
+        for window in order
+    ]
+
+    covid = [w for w in order if "covid" in w or "delta" in w]
+    other = [w for w in order if w not in covid]
+    structure = ""
+    if covid and other:
+        share = counts[covid].sum() / counts.sum() * 100
+        odd = other[0]
+        structure = (
+            f"<p>The COVID windows supply <strong>{share:.0f}%</strong> of the "
+            "pooled disrupted column, so the pooled answer is largely an answer "
+            f"about one event. On <code>{odd}</code> the winner is "
+            f"<code>{winners[odd]}</code>, and the pooled winner "
+            f"<code>{pooled_winner}</code> comes "
+            f"{int(ranks.loc[pooled_winner, odd])} of {len(per_window)}.</p>"
+        )
+        # The same qualification the README carries, in the same conditions.
+        # This surface reaches the reader least equipped to supply it himself,
+        # so it is the last place it should be dropped for brevity.
+        if len(other) < report.NON_COVID_FLOOR:
+            plural = "s" if len(other) > 1 else ""
+            structure += (
+                f"<p><strong>Read that comparison carefully: it rests on "
+                f"{len(other)} non-COVID window{plural}.</strong> The COVID "
+                "windows are one event subdivided, so every disagreement in "
+                f"this table involves the same {len(other)} window{plural} "
+                "again and again &mdash; it is one comparison repeated, not "
+                "several independent ones. Nothing here separates <em>"
+                "different kinds of disruption need different models</em> from "
+                f"<em><code>{odd}</code> happens to have an odd winner</em>, "
+                "and those are not the same claim. A second disruption "
+                "unrelated to COVID is what would tell them apart.</p>"
+            )
+
+    return Answer(
+        id="shock_types",
+        question="Is a disruption a disruption, or do different kinds behave differently?",
+        headline=(
+            f"Different kinds behave differently. {len(order)} declared windows, "
+            f"<strong>{len(set(winners.values()))} different winning models</strong>."
+        ),
+        body=(
+            "<p>The ordinary/disrupted split is binary, and that hides the same "
+            "kind of averaging this project objects to in the overall "
+            "leaderboard. These windows are not variations on a theme: a cliff "
+            "to zero, a slow climb, a second cliff inside that climb, and a "
+            "compound security-and-landslide event.</p>"
+            + _table(
+                ["Window", "Forecasts", "Best model here",
+                 f"Where {pooled_winner} lands"],
+                table_rows,
+                ["left", "right", "left", "right"],
+            )
+            + structure
+            # Deliberately weaker than the obvious sentence. That the winners
+            # differ window to window is a counting fact about the table above.
+            # That they differ *because* the disruptions are of different kinds
+            # is a causal claim this record cannot support, and it is the one a
+            # reader will carry away if the two are not kept apart.
+            + "<p><strong>This does not overturn the headline finding, it "
+            "sharpens the warning.</strong> Ordinary and disrupted rankings "
+            "still invert. What the table adds is narrower: the pooled "
+            "disrupted leaderboard does not describe every disrupted month "
+            "inside it, so \"best during disruptions\" is not a safe thing to "
+            "read off it. Whether that is because disruptions come in kinds, or "
+            "because one window in this record is unusual, is a question this "
+            "site's data cannot answer.</p>"
+        ),
+        keywords=("kinds", "kind", "type", "types", "different disruptions",
+                  "per window", "each window", "landslide", "flood", "covid",
+                  "closure", "compare disruptions", "same", "differ"),
+        sources=(
+            Source("results/metrics.csv",
+                   f"{len(rows):,} shock-labelled forecasts, grouped by window"),
+        ),
+        caveats=(
+            "The thinnest window carries "
+            f"<strong>{int(counts.min())}</strong> forecasts per model. No single "
+            "column here is resolvable on its own, and none is offered as one. "
+            "What this supports is the pattern across windows, not any cell in "
+            "it.",
+        ),
+        chip="Do different kinds of disruption behave differently?",
+    )
+
+
 def _answer_sensitivity(art: Artefacts) -> Answer:
     sens = art.sensitivity
     rows = [
@@ -966,6 +1087,7 @@ BUILDERS = (
     _answer_inversion,
     _answer_accuracy,
     _answer_windows,
+    _answer_shock_types,
     _answer_limits,
     _answer_resourcing,
     _answer_data,

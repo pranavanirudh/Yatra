@@ -302,6 +302,64 @@ def bootstrap_intervals(frame: pd.DataFrame, path: Path) -> Path:
     return _save(fig, path)
 
 
+def shock_type_agreement(frame: pd.DataFrame, path: Path) -> Path:
+    """Do two disruptions agree about which model to use?
+
+    One cell per pair of shock windows, holding the rank correlation between
+    the two orderings. The figure exists because the claim is a *block
+    structure* and a block structure is the one thing a table of ten pairwise
+    numbers hides: the COVID windows agree with each other and all of them
+    disagree with the 2025 disruption, which is visible instantly here and has
+    to be traced by eye in the report table.
+
+    Drawn from metrics.csv alone, like every other figure here.
+    """
+    rows = frame[(frame["regime"] == regimes.SHOCK) & frame["shock_window"].notna()]
+    per_window = rows.groupby(["model", "shock_window"])["mase"].mean().unstack()
+    if per_window.shape[1] < 2 or per_window.isna().to_numpy().any():
+        raise ConfigError(
+            "Cannot draw shock-type agreement: fewer than two windows, or a "
+            "model missing from one of them."
+        )
+
+    windows = list(per_window.columns)
+    ranks = per_window.rank(method="min")
+    size = len(windows)
+    grid = np.full((size, size), np.nan)
+    for i, left in enumerate(windows):
+        for j, right in enumerate(windows):
+            if i == j:
+                continue
+            grid[i, j] = ranks[left].corr(ranks[right], method="spearman")
+
+    fig, ax = plt.subplots(figsize=(1.05 * size + 3.4, 1.05 * size + 2.6))
+    image = ax.imshow(grid, cmap="RdBu", vmin=-1, vmax=1)
+
+    for i in range(size):
+        for j in range(size):
+            if i == j:
+                ax.text(j, i, "—", ha="center", va="center", color=GRID, fontsize=9)
+                continue
+            value = grid[i, j]
+            ax.text(
+                j, i, f"{value:+.2f}", ha="center", va="center", fontsize=8.5,
+                # White on the saturated ends, ink in the pale middle.
+                color="white" if abs(value) > 0.55 else "#1a1a1a",
+            )
+
+    ax.set_xticks(range(size), windows, rotation=35, ha="right", fontsize=8)
+    ax.set_yticks(range(size), windows, fontsize=8)
+    ax.set_title("Do two disruptions agree on which model to use?", pad=12)
+    bar = fig.colorbar(image, ax=ax, shrink=0.72)
+    bar.set_label("rank correlation between the two orderings", fontsize=8)
+    bar.ax.tick_params(labelsize=8)
+    ax.set_xticks(np.arange(-0.5, size, 1), minor=True)
+    ax.set_yticks(np.arange(-0.5, size, 1), minor=True)
+    ax.grid(which="minor", color="white", linewidth=1.6)
+    ax.tick_params(which="minor", length=0)
+    return _save(fig, path)
+
+
 def _save(fig, path: Path) -> Path:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -327,6 +385,7 @@ def build_all(
         regime_ranking(table, directory / "regime_ranking.png"),
         rank_shift(table, directory / "rank_shift.png"),
         horizon_profile(frame, directory / "horizon_profile.png"),
+        shock_type_agreement(frame, directory / "shock_type_agreement.png"),
     ]
     if bootstrap_frame is not None and not bootstrap_frame.empty:
         written.append(
