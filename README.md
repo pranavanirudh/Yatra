@@ -256,6 +256,26 @@ Two decisions carry more weight than the rest, and both are scars:
 Losing configurations are reported. A model that underperforms stays in the
 table with its number.
 
+**This is one shrine, and a second one was looked for.** The finding rests on a
+single site's disrupted months, so the obvious strengthening move is to
+replicate it somewhere else — Tirupati, Sabarimala, a Tamil Nadu shrine, or
+footfall by district. That search was run and it did not find a usable series;
+[docs/second_site.md](docs/second_site.md) records what was examined and why each
+candidate was declined.
+
+The short reason is not availability but verifiability. The data contract
+requires a published annual total to check the monthly series against, and a
+series assembled by scraping has nothing independent to reconcile with — summing
+a scrape to check the same scrape confirms nothing while passing validation. The
+most instructive rejection is district tourism data, which is published exactly
+as one would want and which the publisher states excludes pilgrimage sites: a
+different quantity that resembles this one closely enough to have been used
+without anything crashing.
+
+That file is kept for the same reason the rejected shock windows are kept in the
+config. A candidate somebody examined and declined is part of the audit trail;
+without it, a later reader cannot tell it from one nobody thought of.
+
 ---
 
 ## Results
@@ -438,7 +458,8 @@ src/yatra/       contract, regimes, ephemeris, panchanga, calendarfeat,
 experiments/     configs. Nothing numeric is hardcoded in src/.
 data/raw/        observations. Owner-supplied, never generated.
 results/         committed artefacts. metrics.csv is the source of truth.
-docs/            the spec, the data schema, the ephemeris decision.
+docs/            the spec, the data schema, the ephemeris decision, and the
+                 second-site search that did not find one.
 tests/           pytest.
 ```
 
