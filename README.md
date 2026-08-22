@@ -33,6 +33,7 @@ section below is generated from `results/metrics.csv`, and every figure in
 | Switching model | run and scored, leak guards live |
 | Figures | regenerated from artefacts |
 | Crowd-planning briefing | written; **awaiting site planning ratios** |
+| Answer console | generated from artefacts; refuses rather than guesses |
 
 Two items are open and neither is code. The shock-window citations were drafted
 from public reporting; the owner has since checked some of them against the
@@ -75,8 +76,8 @@ Bringing your own observations is a separate path, and is described under
 what is here.
 
 `all` runs `validate`, `calendar`, `backtest`, `relabel`, `bootstrap`,
-`applicability`, `sensitivity`, `figures`, `report`, `operations`, `test`, in
-that order. A stage that fails stops the run rather than being skipped.
+`applicability`, `sensitivity`, `figures`, `report`, `operations`, `ui`, `test`,
+in that order. A stage that fails stops the run rather than being skipped.
 
 `ingest` is deliberately **not** part of `all`: it writes `data/raw/`, and the
 observation set must never change underneath a pipeline run.
@@ -206,6 +207,38 @@ one signed off by an operations lead.
 
 Each forecast carries two ranges: the ordinary-month band, and a wider
 shock-regime band measured on disrupted months. Plan contingency to the second.
+
+### Asking it questions
+
+`make ui` writes `results/yatra.html` — a page you open by double-clicking it,
+where somebody who will never run `pytest` can type a question in plain words
+and get an answer back with the file and rows it came from printed underneath.
+It answers questions about the project, and it answers questions about any
+single month or year in the record.
+
+It is one file. There is no server, no framework, no database and nothing to
+install; the figures are embedded, so it works offline, from a USB stick, and
+years from now. Opening it runs no forecast — by the time the page exists every
+number on it has already been computed, scored and committed, and the page is a
+reader over those artefacts in exactly the way the generated section of this
+README is.
+
+Three properties of it are deliberate and are held in place by tests:
+
+- **It refuses.** When nothing matches, it says so and lists what it can answer.
+  It never returns its least-bad match, because a confident answer to a question
+  nobody asked is this project's central failure mode wearing a friendlier face.
+- **It cites.** Every answer card carries the artefact and the rows behind it.
+  No number in it is typed; all of them are interpolated from `results/`.
+- **It discloses.** The unverified shock windows are named on it, the absent
+  planning ratios are stated on it, and the model that could not be fitted is
+  reported on it rather than dropped. A friendly surface is exactly where those
+  would otherwise go quiet.
+
+This is a departure from the brief's constraint against dashboards, taken on the
+owner's instruction and recorded in [CLAUDE.md](CLAUDE.md) rather than made
+quietly. What the constraint was protecting — that results live in committed
+artefacts, and that nothing computes behind glass — is intact.
 
 ## Design notes
 
@@ -401,7 +434,7 @@ It was not quietly replaced with the additive variant. Doing so would put a numb
 
 ```
 src/yatra/       contract, regimes, ephemeris, panchanga, calendarfeat,
-                 models, metrics, backtest, report, cli
+                 models, metrics, backtest, report, ui, cli
 experiments/     configs. Nothing numeric is hardcoded in src/.
 data/raw/        observations. Owner-supplied, never generated.
 results/         committed artefacts. metrics.csv is the source of truth.

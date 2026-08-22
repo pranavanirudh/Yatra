@@ -24,7 +24,8 @@ from yatra import backtest, cli, regimes
 
 # Every stage that reads metrics.csv and splits it by regime. A stage added
 # here without the guard fails this test rather than shipping a stale table.
-REGIME_CONSUMING_STAGES = ("run_bootstrap", "figures", "build_report", "operations")
+REGIME_CONSUMING_STAGES = ("run_bootstrap", "figures", "build_report", "operations",
+                           "build_ui")
 
 
 @pytest.mark.parametrize("stage", REGIME_CONSUMING_STAGES)

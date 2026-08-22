@@ -6,7 +6,7 @@ in this directory delegates here, so both entry points run identical code and
 cannot drift apart.
 
 Targets: ingest, validate, calendar, backtest, bootstrap, figures, report,
-operations, test, all.
+operations, ui, test, all.
 
 `ingest` is not part of `all` -- it writes data/raw/ and is invoked by name.
 """

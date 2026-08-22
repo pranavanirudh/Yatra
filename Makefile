@@ -5,7 +5,7 @@
 
 PYTHON ?= python
 
-.PHONY: all ingest validate calendar backtest relabel bootstrap applicability sensitivity figures report operations test clean
+.PHONY: all ingest validate calendar backtest relabel bootstrap applicability sensitivity figures report operations ui test clean
 
 all:
 	$(PYTHON) make.py all
@@ -46,6 +46,12 @@ report:
 
 operations:
 	$(PYTHON) make.py operations
+
+# One self-contained HTML file, built from committed artefacts. Not a server
+# and not a dashboard: it reads results/, embeds what it needs, and holds no
+# connection to the models. Open results/yatra.html in a browser.
+ui:
+	$(PYTHON) make.py ui
 
 test:
 	$(PYTHON) make.py test

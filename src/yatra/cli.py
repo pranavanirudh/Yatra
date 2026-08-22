@@ -25,6 +25,7 @@ from . import (
     regimes,
     report,
     sensitivity,
+    ui,
 )
 from . import figures as figures_mod
 from . import ingest as ingest_mod
@@ -335,6 +336,31 @@ def operations() -> None:
              "See experiments/configs/operations.yaml.")
 
 
+def build_ui() -> None:
+    """Write the self-contained answer console to results/yatra.html.
+
+    Runs last among the artefact stages because it reads what all of them
+    wrote. It calls ``assert_labels_current`` for the same reason ``operations``
+    does: this is the other document a non-technical reader opens away from the
+    run that produced it, and a stale regime split reaching it would look
+    exactly like a current one.
+    """
+    _say("== ui ==")
+
+    frame = backtest.read(RESULTS_DIR / "metrics.csv")
+    backtest.assert_labels_current(frame, CONFIG_DIR / "shocks.yaml")
+
+    artefacts = ui.load(RESULTS_DIR, DATA_DIR, CONFIG_DIR)
+    answers = ui.build_answers(artefacts)
+    page = ui.render(artefacts, answers)
+
+    written = ui.write(page, RESULTS_DIR / "yatra.html")
+    size = written.stat().st_size / 1e6
+    _say(f"wrote {written}  ({len(answers)} answers, "
+         f"{len(artefacts.figures)} figures embedded, {size:.1f} MB)")
+    _say("  open it directly in a browser -- it is one file and needs no server.")
+
+
 def ingest() -> None:
     """Convert the owner's published figures into contract-shaped files.
 
@@ -414,6 +440,7 @@ STAGES = {
     "figures": figures,
     "report": build_report,
     "operations": operations,
+    "ui": build_ui,
     "test": test,
 }
 
@@ -431,5 +458,6 @@ ALL_ORDER = [
     "figures",
     "report",
     "operations",
+    "ui",
     "test",
 ]

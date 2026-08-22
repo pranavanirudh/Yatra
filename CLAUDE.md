@@ -31,8 +31,9 @@ Targets, in dependency order:
 | `figures` | series + shock shading, forecast vs actual, intervals | `results/figures/*.png` |
 | `report` | rewrites the generated block in README.md | `README.md` |
 | `operations` | forward forecast → crowd-planning briefing | `results/operations.csv`, `briefing.md` |
+| `ui` | artefacts → one self-contained answer page | `results/yatra.html` |
 | `test` | pytest, calendar tests first | nothing |
-| `all` | validate → calendar → backtest → bootstrap → sensitivity → figures → report → operations → test | |
+| `all` | validate → calendar → backtest → bootstrap → sensitivity → figures → report → operations → ui → test | |
 
 `ingest` is **not** in `all`. It writes into `data/raw/`, and the observation
 set must never change underneath a pipeline run. Invoke it by name, once.
@@ -60,6 +61,7 @@ src/yatra/
   ingest.py      owner's figures -> contract shape. Transcribes, never invents.
   operations.py  forward forecast -> crowd-planning briefing.
   report.py      README generation from results/metrics.csv.
+  ui.py          artefacts -> results/yatra.html. Answers, or refuses. See 3.8.
   cli.py         stage entry points.
 experiments/configs/   yaml. Nothing numeric is hardcoded in src/.
 data/raw/              observations. Owner-supplied. Never generated.
@@ -151,6 +153,47 @@ neither. `tests/test_registry.py` covers each case.
 The resolved/unresolved bar in that section is read from the bootstrap
 artefact's own `confidence` column. Do not type a significance threshold into
 `report.py`: that would put a number in the README that no row produced.
+
+### 3.8 The answer console is a reader, and it is allowed to refuse
+
+`ui.py` writes one self-contained HTML file from committed artefacts. The brief
+forbade dashboards (§3 constraint 5); the owner asked for a UI after the demo,
+so the constraint was amended rather than ignored. What it was protecting still
+holds and is what makes this an acceptable amendment:
+
+- **No framework, server, database or container**, and no new dependency. One
+  file, opened from the filesystem, working offline.
+- **It computes nothing.** By the time it runs, every number it can show has
+  been scored and committed. It reads `results/`; it never calls a model. There
+  is no code path from the page back into `models.py`.
+- **It runs inside `all`, after every stage it reads**, and calls
+  `assert_labels_current` like the other regime-consuming stages. It is the
+  second document a non-technical reader opens away from the run that produced
+  it, so a stale regime split reaching it is the failure `operations` already
+  guards against. `tests/test_artefact_staleness.py` lists it.
+
+Three properties are load-bearing and tested:
+
+**It refuses.** When nothing clears the match bar, it says so and lists what it
+can answer. It does not show the nearest match. A confident answer to a question
+nobody asked is §5 of the brief in a friendlier typeface — and worse here than
+anywhere else, because the reader is the one least equipped to notice.
+
+**It cites on the card.** Every answer names its artefact and rows in the page,
+not in a footnote. No answer body contains a numeric literal; every figure is
+interpolated from an artefact, for the same reason as §3.1.
+
+**It discloses.** Unverified windows are named, the empty planning ratios are
+stated (§3.5), and the unfittable model is reported (constraint 7). A friendly
+surface is where those go quiet first.
+
+`BUILDERS` is a literal tuple, not a scan for `_answer_*` functions, and
+`tests/test_ui.py` asserts the two agree. Same scar as §3.3 and §3.7: a builder
+missing from the tuple is an answer the page silently stops giving.
+
+Routing is exercised through the real matcher in node (`tests/ui_probe.js`),
+because "answers the wrong question confidently" is not a property any assertion
+about the HTML can catch. If node is absent those tests skip; nothing else does.
 
 ## 4. Things that must crash, not warn
 

@@ -38,6 +38,7 @@ work was done. The **Now** column is the current state.
 | T6 | Block bootstrap over origins, `results/bootstrap.csv` | **built** — resamples origins in blocks; unrun until T1 | run — 2,000 resamples |
 | T7 | `switching` model, leak-free break detector | **built** — detector + leak guards tested; unscored until T1 | scored; it does not rescue the shock regime, and that is reported |
 | T8 | Figures regenerating from `make all` | **built** — five figures, all drawn from artefacts | six figures |
+| T9 | A page a non-technical reader can question directly | *not in the 2026-08-18 brief; requested by the owner on 2026-08-22, and constraint 5 amended for it* | built — `results/yatra.html`, generated from artefacts, refuses rather than guesses |
 
 ## 3. Hard constraints
 
@@ -58,6 +59,14 @@ enforcement is possible; where it is not, they are enforced by review.
    forecast for every (origin, horizon) cell. Different origins is not a
    comparison.
 5. **No web frameworks, databases, containers, or dashboards.**
+   **AMENDED 2026-08-22 by the owner**, after the demo, to permit a
+   reader-facing page. The constraint is kept above as written rather than
+   edited, because what was ruled out before the work was done is evidence and
+   editing it away would destroy that. What the amendment permits is narrow, and
+   the four nouns in the original are still all forbidden: `make ui` writes one
+   self-contained HTML file from committed artefacts, with no framework, no
+   server, no database, no container and no new dependency. It computes nothing
+   when opened and has no code path back into the models. See CLAUDE.md §3.8.
 6. **Festival dates are computed, never tabulated.** No hardcoded date table in
    `src/`. If a test in `tests/test_calendar.py` fails, fix the computation,
    never the test.
