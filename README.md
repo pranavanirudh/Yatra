@@ -42,6 +42,16 @@ split rests in part on an unaudited boundary — the generated section says so
 and names which windows are still unverified. And the briefing ships with no
 resourcing ratios, because those are site policy rather than model output.
 
+Candidate sources for the outstanding windows have been gathered into
+[docs/citation_research.md](docs/citation_research.md): URLs that were opened and
+read, quoted, and matched against what each window claims. It is evidence to
+check, not a verification — the `verified` flag records that the owner examined
+a source, so nothing but the owner sets it, and `shocks.yaml` is deliberately
+left untouched by that research. It also records which boundaries the search
+failed to evidence, because a boundary anchored only to the shape of the series
+is a weaker declaration than one anchored to something announced, and that is
+worth knowing about a window before trusting it.
+
 There are no placeholder numbers anywhere in this file, and there will not be
 any: the results section is written by `src/yatra/report.py` directly from
 `results/metrics.csv`, so a number can appear here only if a row produced it.
