@@ -12,6 +12,11 @@ evidence; the first is an omission.
 
 ---
 
+**Status.** Four candidates are rejected. One — **Kedarnath** — is open, pending
+a data request, and is the only one whose disruptions are not the pandemic. That
+distinction became the deciding criterion after the per-window analysis showed
+this project's non-COVID evidence is a single window; see section 1.
+
 ## 1. Why a second site is the right thing to want
 
 The headline finding rests on 162 disrupted forecasts from one shrine. The
@@ -30,6 +35,15 @@ same disruption. What would actually test the finding is a site whose shocks are
 *unlike* these — a cancelled season, a different security situation, a shock
 with a different shape. That criterion is what the candidates below were
 measured against, not simply "is there a number somewhere".
+
+**And the criterion sharpened after the per-window analysis.** That section
+established that of five declared windows, four are COVID subdivisions and one
+is not, so every COVID-versus-other contrast in this project rests on a single
+window. The binding shortage is therefore specific: not disrupted months, and
+not sites, but **a disruption unrelated to the pandemic**. A second site whose
+own dominant shock is COVID would add rows to the panel without touching that
+shortage. This is why Kedarnath was scoped after the others and why it ranks
+above Tirumala despite Tirumala having far better data.
 
 ## 2. The test that decides it
 
@@ -52,9 +66,77 @@ That turns out to be rare.
 
 ## 3. Candidates examined
 
-### Tirumala / Tirupati (TTD) — rejected, and it was the strongest candidate
+### Kedarnath (BKTC / UTDB) — scoped 2026-08-24, and the strongest candidate
 
-The most promising by far, because TTD publishes at **daily** resolution — finer
+Scoped after the others, and deliberately: the per-window section had by then
+shown that this project's only non-COVID shock is a single window, so what it
+needs is not more disrupted months but a disruption **unrelated to COVID**.
+Kedarnath has two, and neither involves the pandemic:
+
+- The **2013 floods**. Roughly 312,000 pilgrims in 2013 against roughly 41,000
+  in 2014 — an ~87% collapse with a multi-year recovery.
+- The **31 July 2024 disaster**, which halted the yatra from 1 to 10 August.
+  August 2024 records roughly 7,400 pilgrims.
+
+On shock structure it is the best candidate examined. It fails on two other
+things, and the second is the more interesting one.
+
+**No official body publishes a month-wise series.** Checked: the
+[UTDB registration portal](https://registrationandtouristcare.uk.gov.in/),
+which is transactional and carries no statistics section; BKTC's own web
+presence; and the Uttarakhand statistical handbooks. Figures reach the press
+daily through the season, so the data plainly exists internally — it is simply
+not published as a series. What is available is year-wise totals from
+[a secondary aggregator](https://www.sacredyatra.com/kedarnath-pilgrim-stats.html)
+covering 1990 to 2024 with **no citations given**, a paywalled and derived
+[Statista](https://www.statista.com/statistics/1360201/india-number-of-tourist-visits-of-kedarnath/)
+series, and a one-off
+[SDC Foundation](https://www.sdcuk.in/sdc-releases-report-on-char-dham-yatra-2024/)
+report on the 2024 season which quotes one monthly figure in passing, states no
+source, and is not an annual series.
+
+**The temple is shut for half of every year, and that is the deeper problem.**
+Kedarnath opens near Akshaya Tritiya in April or May and closes on Bhai Dooj in
+October or November; the deity moves to Ukhimath for the winter. A monthly
+series therefore carries roughly six **deterministic** zeros a year, every year.
+
+That is a different object from the zeros in this project's own record, and the
+difference is the whole reason this site cannot simply be added:
+
+- Vaishno Devi's zero months are an **unpredicted shock**, which is the thing
+  under study. Kedarnath's are **calendar-determined and known in advance**.
+- Half of every year becomes perfectly predictable from a calendar rule, so
+  every error metric deflates and a model can place well largely by knowing the
+  temple is shut.
+- **It breaks the one-denominator rule.** The MASE scale is in-sample
+  seasonal-naive error over the training window (CLAUDE.md 3.2). Computed on a
+  series dominated by structural zeros it is not the same scale as this
+  shrine's, so the two sites' MASEs would not be comparable — and that
+  comparability is what the entire design rests on.
+- The effective sample is about six months a year, not twelve.
+
+This is Sabarimala's problem again, milder — six months open rather than two —
+and it is not fixed by better sourcing. Obtaining the monthly figures would
+solve availability and leave this untouched.
+
+**Not rejected outright, unlike the candidates below.** The month-wise figures
+exist and are held by public authorities, so an RTI request would make them both
+published and citable, which is exactly what the contract needs.
+[docs/data_request_kedarnath.md](data_request_kedarnath.md) is the drafted
+request. What it cannot resolve is the seasonal-zero problem, and a decision to
+add this site has to answer that separately — probably by modelling the open
+season rather than the calendar year, which is a change to the frame and not a
+change to the data.
+
+### Tirumala / Tirupati (TTD) — rejected; the strongest candidate before Kedarnath
+
+**Superseded by Kedarnath above**, on the reasoning in section 1: Tirumala's
+dominant disruption is COVID, which this project already holds in four
+subdivisions. Adding it would add forecasts without adding the one thing the
+record is short of, which is a shock that is not the pandemic.
+
+It remains the most promising on *resolution*, because TTD publishes at **daily**
+resolution — finer
 than anything here — including pilgrim counts, tonsures and hundi collections.
 Daily data would also address this project's largest stated limitation, that a
 monthly series cannot see a peak-day crush.
@@ -145,22 +227,54 @@ Any one of these, for any site:
   enough back and is uniformly parseable, **together with** an independent annual
   figure to check the roll-up against. The scrape alone is not enough, and that
   is the whole point.
+- For Kedarnath specifically: a **reply to the data request**, carrying
+  month-wise figures with per-season totals to reconcile them against. That
+  settles availability. It does **not** settle the seasonal-zero problem, which
+  is a separate decision about the modelling frame and is described in section 6.
 
 ## 5. Scope of this search, stated honestly
 
-This was roughly half a dozen web searches and a handful of page fetches on
-2026-08-22. It is a first pass, not an exhaustive hunt. Specifically unexplored:
-TTD annual reports and board resolutions, Andhra Pradesh state open data, RTI
-filings, state statistical abstracts, and any of the administering bodies
-contacted directly.
+Roughly half a dozen web searches and a handful of page fetches on 2026-08-22,
+and a further six searches and five fetches for Kedarnath on 2026-08-24. It is a
+first pass, not an exhaustive hunt. Specifically unexplored: TTD annual reports
+and board resolutions, Andhra Pradesh and Uttarakhand state open data, state
+statistical abstracts, and — until the drafted request is sent — any of the
+administering bodies contacted directly.
 
 A negative result from a limited search is a reason to record the search, not to
 claim the data does not exist. It may well exist somewhere this did not look.
 
+**Numbers quoted in section 3 are indicative, not verified.** The Kedarnath
+year-wise figures come from an aggregator that cites no source. They are quoted
+to describe the shape of a disruption, and nothing in this repository computes
+from them. None of them has been transcribed into `data/`, and none may be until
+a citable source is in hand.
+
 ## 6. Where that leaves the project
 
-Single-site, deliberately, and now with the reason on record rather than by
-default.
+Single-site for now, deliberately, with the reason on record rather than by
+default — and with one candidate open rather than none.
+
+**The Kedarnath decision has two parts, and they should not be confused.**
+Getting the data is a sourcing problem with a known route: the request in
+[docs/data_request_kedarnath.md](data_request_kedarnath.md). Using it is a
+modelling problem that no amount of data solves, because six deterministic zeros
+a year is a property of the pilgrimage and not of the record-keeping.
+
+If the figures arrive, the frame has to be decided before anything is scored:
+
+- **Model the open season, not the calendar year.** Drop the closed months
+  rather than scoring them, and treat the series as roughly six observations a
+  year. Honest, and it means m=12 seasonality no longer describes it — so the
+  registry, the MASE denominator and the origin set all need rethinking for that
+  site.
+- **Keep calendar months and carry the zeros.** Simpler, and it makes the two
+  sites' MASE scales incomparable, which forfeits the one thing that makes a
+  cross-site comparison mean anything.
+
+Neither is free, and the first is a substantial change. That is the real cost of
+a second site here, and it is worth knowing before the data arrives rather than
+after.
 
 The two directions that remain open are noted here so they are not rediscovered
 from scratch:

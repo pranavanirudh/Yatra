@@ -281,12 +281,23 @@ unsuited to monthly forecasting regardless of how it is reported. District-level
 tourism data exists and is well maintained, and its publishers state that it
 excludes pilgrimage sites.
 
-A second site was searched for and none was usable.
-[docs/second_site.md](docs/second_site.md) records what was examined, what each
-candidate failed on, and what would change the verdict. It is kept for the same
-reason the rejected shock windows are kept in the config: a candidate somebody
-examined and declined is part of the audit trail, and without it a later reader
-cannot tell it from one nobody thought of.
+A second site was searched for. Four candidates were examined and rejected;
+[docs/second_site.md](docs/second_site.md) records what each failed on and what
+would change the verdict. It is kept for the same reason the rejected shock
+windows are kept in the config: a candidate somebody examined and declined is
+part of the audit trail, and without it a later reader cannot tell it from one
+nobody thought of.
+
+One candidate is open rather than rejected. **Kedarnath** is the only site
+examined whose major disruptions are not the pandemic — which is the thing this
+record is short of, since all but one of its own declared windows are COVID
+subdivisions. Its month-wise figures are not published but are held by public
+authorities, so [docs/data_request_kedarnath.md](docs/data_request_kedarnath.md)
+drafts the request that would make them citable. That would settle availability
+and not the harder problem: the temple is shut for half of every year, so a
+monthly series carries deterministic zeros, and those are a different object
+from the unpredicted closure months in this record. Which frame to model it in
+is a decision to take before any figure arrives, not after.
 
 ---
 
