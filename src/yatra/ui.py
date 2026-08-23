@@ -954,6 +954,80 @@ def _answer_shock_types(art: Artefacts) -> Answer | None:
     )
 
 
+def _answer_other_sites(art: Artefacts) -> Answer:
+    """Whether any of this describes another shrine. It does not.
+
+    This is the question a reader is most likely to arrive with and the one the
+    page can least afford to refuse, because a refusal reads as "probably, but
+    I cannot say" when the answer is a flat no with reasons behind it. It was
+    a genuine gap: asking about Tirupati or Sabarimala got "not understood"
+    until this answer existed.
+    """
+    monthly = art.monthly
+    first = _month_name(pd.Period(str(monthly["month"].iloc[0]), freq="M"))
+    last = _month_name(pd.Period(str(monthly["month"].iloc[-1]), freq="M"))
+    return Answer(
+        id="other_sites",
+        question="Does any of this apply to Tirupati, Sabarimala or another shrine?",
+        headline=(
+            "<strong>No.</strong> This is one shrine's record, and nothing here "
+            "has been tested anywhere else."
+        ),
+        body=(
+            f"<p>Every number on this page comes from {first} to {last} at this "
+            "one site. No second shrine has been scored, so there is no evidence "
+            "either way about whether any of it holds elsewhere &mdash; and the "
+            "detail of these tables is not evidence that they travel.</p>"
+            "<p>There is a specific reason to expect <em>less</em> transfer "
+            "rather than more. Ask about kinds of disruption and you will see "
+            "that the best model already differs between disruptions "
+            "<em>within</em> this single site. If the answer changes between two "
+            "shocks at one shrine, there is little reason to expect it to hold "
+            "across shrines with different geography, different seasons and "
+            "different disruptions entirely.</p>"
+            "<p>A second site was searched for. Four candidates were examined and "
+            "rejected, and the obstacle is usually not that the shrine is "
+            "unimportant but that <strong>monthly footfall for Indian pilgrimage "
+            "sites is largely unpublished</strong>:</p>"
+            "<ul>"
+            "<li><strong>Tirumala / Tirupati</strong> publishes daily counts, but "
+            "as one news post per day and with no annual total on its own site "
+            "to check a compiled series against.</li>"
+            "<li><strong>Sabarimala</strong> reports by season rather than by "
+            "month, and splitting a season across its months would be inventing "
+            "numbers.</li>"
+            "<li><strong>Tamil Nadu temples</strong> &mdash; no published "
+            "attendance series was found; what is published is revenue and land "
+            "rather than footfall.</li>"
+            "<li><strong>District tourism data</strong> is published exactly as "
+            "one would want, and its publishers state that it excludes "
+            "pilgrimage sites. It is a different quantity that resembles this "
+            "one.</li>"
+            "<li><strong>Kedarnath</strong> is the one candidate still open, "
+            "because its major disruptions are not the pandemic. Its figures are "
+            "not published either, and the temple is shut half of every year, "
+            "which is a harder problem than sourcing.</li>"
+            "</ul>"
+            "<p>That search is written up in full, including what would change "
+            "the verdict.</p>"
+        ),
+        keywords=("tirupati", "tirumala", "sabarimala", "velankanni",
+                  "tiruvannamalai", "kedarnath", "other", "shrine", "shrines",
+                  "temple", "temples", "elsewhere", "apply", "transfer",
+                  "generalise", "generalize", "district", "state", "everywhere",
+                  "another", "same", "india", "country", "nationwide",
+                  "national", "anywhere", "valid", "hold", "holds"),
+        sources=(
+            Source("docs/second_site.md",
+                   "the second-site search and the verdict on each candidate"),
+            Source("data/raw/monthly.csv",
+                   f"the only observation set scored here, {len(monthly):,} months "
+                   "from one site"),
+        ),
+        chip="Does this apply to other shrines?",
+    )
+
+
 def _answer_sensitivity(art: Artefacts) -> Answer:
     sens = art.sensitivity
     rows = [
@@ -1088,6 +1162,7 @@ BUILDERS = (
     _answer_accuracy,
     _answer_windows,
     _answer_shock_types,
+    _answer_other_sites,
     _answer_limits,
     _answer_resourcing,
     _answer_data,
@@ -1294,6 +1369,13 @@ h1 {
   font-family: var(--mono); font-size: .71rem; color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
+
+.scope {
+  margin: .9rem 0 0; padding: .7rem .9rem;
+  border-left: 2px solid var(--accent); background: var(--accent-soft);
+  font-size: .88rem; color: var(--ink); max-width: 68ch;
+}
+.scope strong { color: var(--accent); }
 
 /* --- the one thing you operate ---------------------------------------- */
 .ask { margin-bottom: 1.75rem; }
@@ -1953,6 +2035,7 @@ def render(art: Artefacts, answers: list[Answer] | None = None,
         for a in [a for a in answers if a.chip][:CHIP_COUNT]
     )
 
+    site_short = "Shri Mata Vaishno Devi, Katra"
     first_month = _month_name(pd.Period(payload["firstMonth"], freq="M"))
     last_month = _month_name(pd.Period(payload["lastMonth"], freq="M"))
     meta = "".join(
@@ -2010,6 +2093,11 @@ def render(art: Artefacts, answers: list[Answer] | None = None,
   row in a committed results file, and names which one. Nothing on this page is
   computed when you open it, and nothing on it was typed by hand.</p>
   <div class="meta">{meta}</div>
+  <p class="scope"><strong>One shrine only.</strong> Every number here is the
+  record of {site_short}. Nothing on this page describes Tirupati, Sabarimala,
+  or any other site &mdash; this one&rsquo;s disruptions are its own, and no
+  second site has been scored, so there is no evidence either way about whether
+  any of it holds elsewhere.</p>
 </header>
 
 <section class="ask">

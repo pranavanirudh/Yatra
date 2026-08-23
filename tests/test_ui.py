@@ -258,6 +258,12 @@ ROUTES = (
     ("what counts as a disrupted month", "What counts as a disrupted"),
     ("what if there is a disruption", "What happens to these numbers"),
     ("do different kinds of disruption behave differently", "Is a disruption a disruption"),
+    # The question a reader is most likely to arrive with. It returned
+    # "Not understood" until the scope answer existed, which reads as
+    # "probably, but I cannot say" when the answer is a flat no.
+    ("does this apply to Tirupati", "Does any of this apply"),
+    ("what about sabarimala", "Does any of this apply"),
+    ("can I use this for another temple", "Does any of this apply"),
     ("how does this whole thing work", "How does this whole thing"),
     ("how are the festival dates worked out", "How are the festival dates"),
     ("how many pilgrims are expected next month", "Forecast for"),
