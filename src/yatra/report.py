@@ -47,6 +47,59 @@ def _fmt(value: float, places: int = 3) -> str:
     return f"{value:.{places}f}"
 
 
+def _scope(
+    frame: pd.DataFrame,
+    observations_path: str | Path = "data/raw/monthly.csv",
+) -> list[str]:
+    """What the results below cover, and what they do not.
+
+    Generated rather than hand-written because the span and the month count are
+    numbers, and CLAUDE.md 3.1 keeps numbers inside the markers. The
+    qualitative half -- why no second site exists -- is hand-written prose in
+    the README, because it is a fact about other people's publishing practices
+    and no row here produces it.
+
+    This sits first in the generated block on purpose. Every table below is a
+    result from one shrine, and a reader who takes the leaderboard away without
+    that qualification has taken away something this record does not support.
+    """
+    site = "Shri Mata Vaishno Devi, Katra, Jammu & Kashmir"
+    lines = ["### Scope", ""]
+
+    path = Path(observations_path)
+    if path.exists():
+        observations = pd.read_csv(path)
+        if len(observations) and "month" in observations.columns:
+            months = observations["month"].astype(str)
+            lines += [
+                "| | |",
+                "|---|---|",
+                f"| Site | {site} |",
+                f"| Months observed | {len(observations):,} |",
+                f"| Span | {months.iloc[0]} to {months.iloc[-1]} |",
+                f"| Sites in this study | 1 |",
+                "",
+            ]
+
+    windows = frame["shock_window"].dropna().nunique() if "shock_window" in frame else 0
+    transfer = (
+        "**Nothing below generalises to another shrine, state, or district.** "
+        "Every figure in this section is one site's record. The per-window "
+        "section shows that the winning model differs across kinds of "
+        "disruption *within* this site"
+    )
+    if windows:
+        transfer += f", across its {windows} declared windows"
+    transfer += (
+        " &mdash; which is a reason to expect less transfer between sites, not "
+        "more. A second site has not been scored here, so there is no evidence "
+        "either way about whether any of this holds elsewhere, and none should "
+        "be inferred from the fact that these tables are detailed."
+    )
+    lines += [transfer, ""]
+    return lines
+
+
 def _provenance(frame: pd.DataFrame) -> list[str]:
     origins = frame["origin"].nunique()
     horizons = sorted(frame["horizon"].unique())
@@ -1153,6 +1206,7 @@ def render(
     leaderboard, table = _leaderboard(frame)
     blocks = (
         [WARNING, ""]
+        + _scope(frame)
         + _provenance(frame)
         + _regime_counts(frame)
         + leaderboard

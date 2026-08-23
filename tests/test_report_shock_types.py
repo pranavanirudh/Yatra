@@ -243,6 +243,51 @@ def test_the_committed_section_reports_its_thinnest_window(committed_frame):
     assert f"{int(per_window.min())} forecasts per model" in body
 
 
+def test_scope_states_the_site_count_and_refuses_transfer(tmp_path):
+    """The scope block is the first thing in the generated section, and says no.
+
+    A reader who takes the leaderboard away without knowing it came from one
+    shrine has taken away something this record does not support, and the
+    tables below get more detailed the further you read -- which reads as
+    authority rather than as depth on a single site.
+    """
+    observations = tmp_path / "monthly.csv"
+    observations.write_text(
+        "month,pilgrims,source_id\n2000-01,10,s\n2000-02,20,s\n2000-03,30,s\n",
+        encoding="utf-8",
+    )
+    lines = report._scope(frame_with_windows({"a": 1.0, "b": -1.0}), observations)
+    body = "\n".join(lines)
+
+    assert body.startswith("### Scope")
+    assert "| Months observed | 3 |" in body
+    assert "| Span | 2000-01 to 2000-03 |" in body
+    assert "| Sites in this study | 1 |" in body
+    assert "Nothing below generalises to another shrine, state, or district." in body
+    assert "no evidence either way" in body
+
+
+def test_scope_survives_a_missing_observation_file(tmp_path):
+    """The refusal to generalise does not depend on the counts being available.
+
+    If the observation file is absent the table drops out; the sentence saying
+    these results do not transfer must not drop out with it.
+    """
+    lines = report._scope(
+        frame_with_windows({"a": 1.0, "b": -1.0}), tmp_path / "absent.csv"
+    )
+    body = "\n".join(lines)
+    assert "Months observed" not in body
+    assert "Nothing below generalises" in body
+
+
+def test_scope_is_the_first_section_of_the_generated_block(committed_frame):
+    body = report.render()
+    scope = body.index("### Scope")
+    assert scope < body.index("### Run provenance")
+    assert scope < body.index("### Mean MASE by regime")
+
+
 @pytest.fixture
 def committed_frame():
     from pathlib import Path

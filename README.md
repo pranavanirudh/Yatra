@@ -256,25 +256,37 @@ Two decisions carry more weight than the rest, and both are scars:
 Losing configurations are reported. A model that underperforms stays in the
 table with its number.
 
-**This is one shrine, and a second one was looked for.** The finding rests on a
-single site's disrupted months, so the obvious strengthening move is to
-replicate it somewhere else — Tirupati, Sabarimala, a Tamil Nadu shrine, or
-footfall by district. That search was run and it did not find a usable series;
-[docs/second_site.md](docs/second_site.md) records what was examined and why each
-candidate was declined.
+## Scope
 
-The short reason is not availability but verifiability. The data contract
-requires a published annual total to check the monthly series against, and a
-series assembled by scraping has nothing independent to reconcile with — summing
-a scrape to check the same scrape confirms nothing while passing validation. The
-most instructive rejection is district tourism data, which is published exactly
-as one would want and which the publisher states excludes pilgrimage sites: a
-different quantity that resembles this one closely enough to have been used
-without anything crashing.
+**One site.** Shri Mata Vaishno Devi, Katra, Jammu & Kashmir. The exact span and
+month count are in the generated Scope table below, because they are numbers and
+numbers live inside the markers.
 
-That file is kept for the same reason the rejected shock windows are kept in the
-config. A candidate somebody examined and declined is part of the audit trail;
-without it, a later reader cannot tell it from one nobody thought of.
+**No result here generalises to another shrine, state, or district.** Not to
+Tirupati, not to Sabarimala, not to any Tamil Nadu temple, and not to footfall by
+district. The per-window section demonstrates that the winning model differs
+across kinds of disruption *within* this single site — which is a reason to
+expect less transfer between sites, not more. No second site has been scored, so
+there is no evidence either way, and the detail of the tables below is not
+evidence that they travel.
+
+**That is a data-availability constraint, not a scope choice.** Monthly footfall
+series for Indian pilgrimage sites are largely unpublished. This shrine's board
+publishes a month-wise table reaching back decades, which turns out to be rare.
+TTD publishes at daily resolution, but as one news post per day rather than as a
+series, and with no annual total on its own site to reconcile a scrape against.
+Most HR&CE temples publish revenue and land holdings rather than attendance.
+Sabarimala reports by season, and a season-only pilgrimage is structurally
+unsuited to monthly forecasting regardless of how it is reported. District-level
+tourism data exists and is well maintained, and its publishers state that it
+excludes pilgrimage sites.
+
+A second site was searched for and none was usable.
+[docs/second_site.md](docs/second_site.md) records what was examined, what each
+candidate failed on, and what would change the verdict. It is kept for the same
+reason the rejected shock windows are kept in the config: a candidate somebody
+examined and declined is part of the audit trail, and without it a later reader
+cannot tell it from one nobody thought of.
 
 ---
 
@@ -283,6 +295,17 @@ without it, a later reader cannot tell it from one nobody thought of.
 <!-- BEGIN GENERATED -->
 
 > **Generated section.** Everything between the markers is written by `src/yatra/report.py` from `results/metrics.csv`. Edits here are overwritten by `make report`. Numbers do not belong in the hand-written prose outside the markers.
+
+### Scope
+
+| | |
+|---|---|
+| Site | Shri Mata Vaishno Devi, Katra, Jammu & Kashmir |
+| Months observed | 487 |
+| Span | 1986-01 to 2026-07 |
+| Sites in this study | 1 |
+
+**Nothing below generalises to another shrine, state, or district.** Every figure in this section is one site's record. The per-window section shows that the winning model differs across kinds of disruption *within* this site, across its 5 declared windows &mdash; which is a reason to expect less transfer between sites, not more. A second site has not been scored here, so there is no evidence either way about whether any of this holds elsewhere, and none should be inferred from the fact that these tables are detailed.
 
 ### Run provenance
 
