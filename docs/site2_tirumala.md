@@ -202,7 +202,71 @@ makes it a pattern.
   a month to be present. A month with missing days is a partial month and must
   be recorded missing, not summed and presented as complete.
 
-## 5. Asymmetry discipline
+## 5. Verdict: do not scrape. File a request instead.
+
+**Recommendation, 2026-08-24: do not transcribe from the archive.** Not because
+the depth is inadequate — 75 months is thin but workable — but because a
+compiled series cannot satisfy the data contract, and the ways of making it
+satisfy the contract are all worse than not having it.
+
+### The blocking argument
+
+`docs/data_schema.md` requires `annual.csv` to be a *published* annual total,
+independent of the monthly series, because its whole job is to check it.
+TTD publishes no annual figure: its own publications page carries none, and the
+annual numbers in circulation come from press reporting.
+
+That leaves three options and none is acceptable:
+
+1. **Sum the scrape into `annual.csv`.** Then the check is the scrape checking
+   itself, which confirms nothing while passing `make validate`. This is the
+   quiet-plausible-output failure the whole project is built against.
+2. **Use a press annual figure.** Genuinely independent, and unusable: press
+   totals are rounded and approximate, so exact reconciliation fails and
+   `ContractViolation` fires correctly. Making it pass means introducing a
+   tolerance — a `strict=False` escape hatch in all but name, and §4 of
+   CLAUDE.md says none of those exists here for a reason.
+3. **Exempt the second site from reconciliation.** Then the two sites are held
+   to different standards of evidence, and every cross-site comparison inherits
+   that asymmetry silently.
+
+Option 2 is the tempting one, because a press total *is* independent and would
+land close. It is still wrong: the contract's value is that it has no dial. A
+tolerance added to admit one site is a tolerance that admits everything after.
+
+### What to do instead
+
+**File an RTI request with TTD**, on the same reasoning and largely the same
+wording as [data_request_kedarnath.md](data_request_kedarnath.md). A reply
+carrying both month-wise figures *and* separately-compiled annual totals
+satisfies the contract exactly, and an RTI reference number is a stronger
+citation than 2,230 individual URLs.
+
+Ask TTD for the four things that document asks for, plus two specific to what
+the archive measurement turned up:
+
+- **The measurement window.** Whether the published daily figure is a full-day
+  count or a fixed-hours count, and on what dates that definition changed. The
+  archive shows `3am-to-6pm`, `3am-to-7pm`, `4am-to-7pm` and no window at all,
+  which is either several definitions or one definition inconsistently stated.
+- **The pre-2020 duplicates.** Whether the two figures published for many dates
+  before 2020 are a partial-day and a full-day count, and which is which.
+  A single sentence in reply would make roughly 1,800 records interpretable that
+  are otherwise not.
+
+Filing this costs a stamp and a statutory wait. Scraping costs days of work and
+produces a series the pipeline should refuse — and would refuse, correctly.
+
+### If the request fails
+
+Then Tirumala is rejected on the same ground as the candidates in
+[second_site.md](second_site.md), and it is rejected for a better-documented
+reason than any of them. Recording that is worth more than a series nobody can
+verify: it establishes that the obstacle to a second Indian pilgrimage site is
+publication practice rather than absence of data, across four administering
+bodies now rather than three.
+
+## 6. Asymmetry discipline
 
 If the sites have different training depths — and they will — the following are
 obligations, not preferences.

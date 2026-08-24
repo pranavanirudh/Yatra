@@ -348,10 +348,19 @@ is precisely the move this project exists to argue against — averaging across
 heterogeneous regimes produces a number that describes none of them, and sites
 are more heterogeneous than regimes.
 
-The requirement for a published annual total to reconcile a compiled series
-against is unchanged and still unmet, and measuring the depth did not address
-it. Depth, collection mechanics and a candidate non-pandemic shock to check
-during collection are assessed in
+**The recommendation is not to scrape it.** The contract requires a published
+annual total that independently checks the monthly series, and TTD publishes
+none — its own publications carry no annual figure, and the ones in circulation
+come from press reporting. Summing a scrape into that slot would be the scrape
+checking itself; using a rounded press total would require a tolerance the
+contract deliberately does not have; exempting the second site would hold the
+two to different standards of evidence. A request to the administering body,
+answered with month-wise figures and separately-compiled annual totals, meets
+the requirement exactly and costs a stamp rather than days of work on a series
+the pipeline should refuse.
+
+Depth, collection mechanics, the measurement-window ambiguity and a candidate
+non-pandemic shock to check are assessed in
 [docs/site2_tirumala.md](docs/site2_tirumala.md). Nothing has been transcribed
 and `data/raw/` is untouched.
 
