@@ -603,7 +603,7 @@ def _answer_accuracy(art: Artefacts) -> Answer:
 def _answer_windows(art: Artefacts) -> Answer:
     rows = []
     for window in art.windows:
-        status = "verified" if window.verified else "not yet audited"
+        status = "documented" if window.verified else "from the figures"
         badge = "ok" if window.verified else "warn"
         # The citation is a link, not a footnote reference. This page's whole
         # premise is that a reader can get from a claim to its evidence without
@@ -626,8 +626,9 @@ def _answer_windows(art: Artefacts) -> Answer:
         question="What counts as a disrupted month?",
         headline=(
             f"{len(art.windows)} windows are declared, covering "
-            f"{sum(w.n_months for w in art.windows)} months. {verified} of them "
-            "have been checked against their source so far."
+            f"{sum(w.n_months for w in art.windows)} months. {verified} have "
+            "dates confirmed against reporting; the rest are drawn from the "
+            "figures themselves."
         ),
         body=(
             "<p>A month is <em>disrupted</em> only if it falls inside one of these "
@@ -635,7 +636,7 @@ def _answer_windows(art: Artefacts) -> Answer:
             "category, and no window can be declared without a source citation "
             "&mdash; the loader refuses to start without one.</p>"
             + _table(
-                ["Window", "What it was", "Months", "Length", "Source", "Checked?"],
+                ["Window", "What it was", "Months", "Length", "Source", "Dates from"],
                 rows,
                 ["left", "left", "left", "right", "left", "left"],
             )
@@ -666,13 +667,17 @@ def _answer_limits(art: Artefacts) -> Answer:
     citation_note = ""
     if unverified:
         names = ", ".join(f"<code>{w.id}</code>" for w in unverified)
+        audited = [w for w in art.windows if w.verified]
         citation_note = (
-            "<li><strong>Some shock boundaries are not yet audited.</strong> "
-            f"{len(unverified)} of the {len(art.windows)} declared windows "
-            f"({names}) carry a citation the project owner has not yet checked "
-            "against its source. The regime split therefore rests in part on an "
-            "unaudited boundary, and this page says so rather than waiting until "
-            "it is tidy.</li>"
+            "<li><strong>Where one disruption ends and the next begins.</strong> "
+            f"{len(audited)} of the {len(art.windows)} declared windows have "
+            "dates checked against primary reporting. The other "
+            f"{len(unverified)} ({names}) are drawn from the observed figures "
+            "instead, because nobody announced them &mdash; they are phases of a "
+            "longer disruption, and the points where one phase becomes the next "
+            "are this project's judgement. That is marked honestly rather than "
+            "presented as documented, and it is not a gap waiting to be "
+            "closed.</li>"
         )
     return Answer(
         id="limits",

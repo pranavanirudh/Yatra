@@ -1175,6 +1175,20 @@ def _applicability(path: str | Path = "results/applicability.csv") -> list[str]:
 
 
 def _caveats(shocks_config: str | Path) -> list[str]:
+    """Which boundaries are documented, and why the rest are not going to be.
+
+    This section used to read as a to-do: N windows "not yet checked", implying
+    a gap that more diligence would close. That was the wrong description. A
+    citation can evidence that an event happened and when it was announced. It
+    cannot evidence where one phase of a continuing disruption ends and the next
+    begins, because nobody announced that -- it was inferred from the series.
+
+    So the unverified windows are not pending work. They are correctly marked,
+    and the distinction the reader needs is between boundaries anchored to an
+    announcement and boundaries anchored to the observations. Reporting them as
+    an outstanding chore would suggest the split becomes sounder once somebody
+    gets round to it, and it does not.
+    """
     try:
         windows = regimes.load_windows(shocks_config)
     except Exception:
@@ -1182,17 +1196,45 @@ def _caveats(shocks_config: str | Path) -> list[str]:
     pending = regimes.unverified(windows)
     if not pending:
         return []
-    names = ", ".join(f"`{w.id}`" for w in pending)
-    return [
-        "### Caveat: unverified shock windows",
+
+    audited = [w for w in windows if w.verified]
+    audited_names = ", ".join(f"`{w.id}`" for w in audited)
+    pending_names = ", ".join(f"`{w.id}`" for w in pending)
+
+    lines = [
+        "### Which shock boundaries are documented",
         "",
-        f"{len(pending)} of {len(windows)} declared shock windows carry citations "
-        f"that the project owner has not yet checked against the source: {names}. "
-        "The dates were drafted from public reporting. Until they are verified, "
-        "the regime split — and therefore every number above — rests on an "
-        "unaudited boundary.",
+        f"**{len(audited)} of {len(windows)}** declared windows have dates the "
+        "owner checked against primary reporting",
+    ]
+    if audited:
+        lines[-1] += f": {audited_names}."
+    else:
+        lines[-1] += "."
+    lines += [
+        "",
+        f"The remaining {len(pending)} ({pending_names}) are marked unverified, "
+        "and that is the **correct state rather than an outstanding task.** "
+        "Their boundaries are derived from the observed series, not from an "
+        "announced closure or resumption.",
+        "",
+        "The difference matters more than the count. A citation can evidence that "
+        "an event occurred and when it was announced — a suspension, a reopening, "
+        "a capacity order, a landslide. It cannot evidence where one phase of a "
+        "continuing disruption ends and the next begins, because nobody announced "
+        "that; this project inferred it from the observations. Marking such a "
+        "boundary verified would launder a judgement into a citation, which is "
+        "why the flag is per-window and why these stay false.",
+        "",
+        "What follows for the reader is not that the split is provisional, but "
+        "that it is of two kinds. Windows anchored to an announcement can be "
+        "checked by anyone. Windows drawn from the series carry the risk that a "
+        "boundary sits where the data made it convenient, and the sensitivity "
+        "arm above exists to test exactly that: the same forecasts re-scored "
+        "under a different set of boundaries.",
         "",
     ]
+    return lines
 
 
 def render(

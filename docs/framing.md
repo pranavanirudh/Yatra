@@ -2,11 +2,21 @@
 
 Written for the owner, for talks, abstracts and viva-style questioning.
 
-**No figures are typed into this file.** Every number this project has lives in
-the generated block of the README, where a row produced it. Quoting one here
-would create a second copy that drifts the first time the pipeline re-runs and
-nobody re-reads this file. Where a number is needed, take it from the generated
-section at the moment of writing, and take it from there again next time.
+**One figure is typed into this file, deliberately: the month count in the
+abstract's opening sentence.** Everything else this project reports lives in the
+generated block of the README, where a row produced it, and quoting those here
+would create a second copy that drifts the first time the pipeline re-runs.
+
+The exception is made because the single-site limit belongs in the abstract's
+first paragraph rather than in a limitations section at the end. A reader who
+discovers `n=1` for themselves trusts everything before it less; volunteering
+the constraint is what makes the rest credible. Stating it without the span
+would be vaguer than the claim deserves.
+
+That number is the observation count, not a result — it changes only when the
+observation set does, which is the one thing in this repository that never
+changes underneath a run. If it ever does change, the Scope table in the
+generated README block is the authority, and this sentence follows it.
 
 ---
 
@@ -42,13 +52,13 @@ win — the headline error figure is unremarkable, and it is not the point.
 ## 3. Draft abstract
 
 > Forecasting models are conventionally selected by average error over a holdout
-> period. This paper asks whether that selection survives being split by regime.
+> period. This paper asks whether that selection survives being split by regime,
+> **at a single shrine over 487 months of monthly pilgrimage footfall.**
 >
-> Using four decades of monthly pilgrimage footfall from a single site, with
-> disruptions declared from cited sources and applied only as evaluation labels,
-> we score nine forecasting methods on an identical set of rolling origins
-> against a single shared denominator. Rankings on ordinary months and on
-> disrupted months are compared directly.
+> With disruptions declared from cited sources and applied only as evaluation
+> labels, we score nine forecasting methods on an identical set of rolling
+> origins against a single shared denominator. Rankings on ordinary months and
+> on disrupted months are compared directly.
 >
 > The rankings invert. The method with the lowest error on ordinary months falls
 > to mid-table during disruptions, and the method that wins during disruptions is

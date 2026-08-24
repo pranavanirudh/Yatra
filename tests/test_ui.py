@@ -168,7 +168,15 @@ def test_unverified_shock_windows_are_disclosed(page, artefacts):
     pending = regimes.unverified(artefacts.windows)
     if not pending:
         pytest.skip("all windows verified")
-    assert "not yet audited" in page
+    # The page must distinguish a boundary somebody announced from one this
+    # project inferred, and must not present the second as a pending chore --
+    # no amount of diligence turns a judgement about the series into a citation.
+    assert "from the figures" in page
+    assert "not a gap waiting to be" in page, (
+        "the page describes the inferred boundaries as unfinished work. They are "
+        "correctly marked, and calling them a gap implies the split gets sounder "
+        "once somebody checks them, which it does not."
+    )
     for window in pending:
         assert window.id in page, (
             f"shock window {window.id} is unverified and is not named on the "

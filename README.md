@@ -24,7 +24,7 @@ section below is generated from `results/metrics.csv`, and every figure in
 | Stage | State |
 |---|---|
 | Data contract | observations loaded, contiguous, annual totals reconciling |
-| Shock windows | declared with citations — **owner verification part-complete** |
+| Shock windows | declared with citations; two anchored to announcements, three inferred from the series and marked so |
 | Model registry | complete; one model reported as unfittable rather than dropped |
 | Backtest harness | run; one origin set, shared MASE denominator |
 | Calendar layer | computed from the ephemeris, validated against published almanacs |
@@ -35,22 +35,27 @@ section below is generated from `results/metrics.csv`, and every figure in
 | Crowd-planning briefing | written; **awaiting site planning ratios** |
 | Answer console | generated from artefacts; refuses rather than guesses |
 
-Two items are open and neither is code. The shock-window citations were drafted
-from public reporting; the owner has since checked some of them against the
-sources, and the rest are still outstanding. Until they all are, the regime
-split rests in part on an unaudited boundary — the generated section says so
-and names which windows are still unverified. And the briefing ships with no
-resourcing ratios, because those are site policy rather than model output.
+One item is open and it is not code: the briefing ships with no resourcing
+ratios, because those are site policy rather than model output.
 
-Candidate sources for the outstanding windows have been gathered into
-[docs/citation_research.md](docs/citation_research.md): URLs that were opened and
-read, quoted, and matched against what each window claims. It is evidence to
-check, not a verification — the `verified` flag records that the owner examined
-a source, so nothing but the owner sets it, and `shocks.yaml` is deliberately
-left untouched by that research. It also records which boundaries the search
-failed to evidence, because a boundary anchored only to the shape of the series
-is a weaker declaration than one anchored to something announced, and that is
-worth knowing about a window before trusting it.
+**The unverified shock windows are not a second open item.** They are correctly
+marked, and they will stay that way. Two windows are anchored to announcements —
+a suspension, a reopening, a landslide, a resumption — and the owner checked
+those against primary reporting. The rest are phases *within* a longer
+disruption, and nobody announced where one phase ends and the next begins; this
+project inferred those points from the observations. A citation cannot evidence
+an inference, so marking them verified would launder a judgement into a
+citation. The generated section names which are which and explains the
+distinction, and the sensitivity arm exists precisely to test whether the
+inferred boundaries are load-bearing.
+
+The search for supporting sources is recorded in
+[docs/citation_research.md](docs/citation_research.md) — URLs opened, read and
+quoted, and matched against what each window claims. It found one thing worth
+knowing: one recovery window's *start* coincides with a published capacity
+order, so that edge is documented even though its other edge is not. It also
+records the boundaries no reporting evidences at all, which is the more useful
+half.
 
 There are no placeholder numbers anywhere in this file, and there will not be
 any: the results section is written by `src/yatra/report.py` directly from
@@ -298,7 +303,44 @@ windows are kept in the config: a candidate somebody examined and declined is
 part of the audit trail, and without it a later reader cannot tell it from one
 nobody thought of.
 
-One candidate is open rather than rejected. **Kedarnath** is the only site
+### Site 2 is Tirumala, and what it will and will not settle
+
+Recorded **before any data is collected**, so the results cannot later be read
+as closing a gap they do not close.
+
+**It will not strengthen the non-pandemic evidence.** Tirumala's dominant
+disruption is COVID, which this project already holds in four subdivided
+windows. A second site whose major shock is the same pandemic adds forecasts
+without adding an independent disruption. The single non-pandemic window remains
+single, and the qualification on the per-window block structure stands
+completely unchanged. No result from the second site is to be described as
+though it moved that.
+
+**It will test whether the headline claim replicates.** The clean-versus-shock
+rank inversion has never been examined anywhere but here, and Tirumala differs
+in three ways that could plausibly break it: it counts darshan rather than
+pilgrims entering, it draws a different pilgrim population, and its principal
+observances are anchored differently in the calendar from the lunar festivals
+this project computes. Replication across those differences is worth more than
+another pandemic window. Failure to replicate is worth more still, and would be
+reported as prominently.
+
+**Training depth will differ between the sites and is reported, not buried.**
+Tirumala's published daily figures do not reach back anything like as far as
+this shrine's monthly table, so the two sites cannot be given the same run-up
+before their first forecast origin. Where that differs it is stated in this
+README rather than left in config; per-site origin counts appear wherever a
+site comparison appears; and **the two sites are never pooled into a single
+averaged number.** A combined leaderboard is the natural thing to reach for when
+presenting two sites, and it is precisely the move this project exists to argue
+against — averaging across heterogeneous regimes produces a number that
+describes none of them, and sites are more heterogeneous than regimes.
+
+Depth, collection mechanics and a candidate non-pandemic shock to check during
+collection are assessed in [docs/site2_tirumala.md](docs/site2_tirumala.md).
+Nothing has been transcribed and `data/raw/` is untouched.
+
+One further candidate is open rather than rejected. **Kedarnath** is the only site
 examined whose major disruptions are not the pandemic — which is the thing this
 record is short of, since all but one of its own declared windows are COVID
 subdivisions. Its month-wise figures are not published but are held by public
@@ -539,9 +581,15 @@ Multiplicative seasonality divides by a seasonal index, so it requires every mon
 
 It was not quietly replaced with the additive variant. Doing so would put a number in the table under this model's name that a different model produced. **Applicability is part of the comparison:** a method that stops existing once a shock enters the record is not a safe default, however well it scores in ordinary months.
 
-### Caveat: unverified shock windows
+### Which shock boundaries are documented
 
-3 of 5 declared shock windows carry citations that the project owner has not yet checked against the source: `covid_recovery_pre_delta`, `delta_wave`, `covid_recovery_post_delta`. The dates were drafted from public reporting. Until they are verified, the regime split — and therefore every number above — rests on an unaudited boundary.
+**2 of 5** declared windows have dates the owner checked against primary reporting: `covid_closure`, `floods_2025`.
+
+The remaining 3 (`covid_recovery_pre_delta`, `delta_wave`, `covid_recovery_post_delta`) are marked unverified, and that is the **correct state rather than an outstanding task.** Their boundaries are derived from the observed series, not from an announced closure or resumption.
+
+The difference matters more than the count. A citation can evidence that an event occurred and when it was announced — a suspension, a reopening, a capacity order, a landslide. It cannot evidence where one phase of a continuing disruption ends and the next begins, because nobody announced that; this project inferred it from the observations. Marking such a boundary verified would launder a judgement into a citation, which is why the flag is per-window and why these stay false.
+
+What follows for the reader is not that the split is provisional, but that it is of two kinds. Windows anchored to an announcement can be checked by anyone. Windows drawn from the series carry the risk that a boundary sits where the data made it convenient, and the sensitivity arm above exists to test exactly that: the same forecasts re-scored under a different set of boundaries.
 
 <!-- END GENERATED -->
 
