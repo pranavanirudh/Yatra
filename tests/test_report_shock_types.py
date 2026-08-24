@@ -263,8 +263,16 @@ def test_scope_states_the_site_count_and_refuses_transfer(tmp_path):
     assert "| Months observed | 3 |" in body
     assert "| Span | 2000-01 to 2000-03 |" in body
     assert "| Sites in this study | 1 |" in body
-    assert "Nothing below generalises to another shrine, state, or district." in body
-    assert "no evidence either way" in body
+
+    # The substance, not the wording: the block must say the single site is the
+    # scope of the claim rather than a deficiency in it, and must leave transfer
+    # open rather than either claiming or disclaiming it.
+    assert "scope of the claim rather than a shortfall" in body
+    assert "left open" in body
+    assert "not addressed by" in body, (
+        "the scope block does not say that transfer to another site is "
+        "unaddressed, which is the one thing a reader must not assume either way"
+    )
 
 
 def test_scope_survives_a_missing_observation_file(tmp_path):
@@ -278,7 +286,8 @@ def test_scope_survives_a_missing_observation_file(tmp_path):
     )
     body = "\n".join(lines)
     assert "Months observed" not in body
-    assert "Nothing below generalises" in body
+    assert "scope of the claim rather than a shortfall" in body
+    assert "left open" in body
 
 
 def test_scope_is_the_first_section_of_the_generated_block(committed_frame):

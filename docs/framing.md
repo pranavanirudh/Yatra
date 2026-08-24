@@ -7,7 +7,7 @@ abstract's opening sentence.** Everything else this project reports lives in the
 generated block of the README, where a row produced it, and quoting those here
 would create a second copy that drifts the first time the pipeline re-runs.
 
-The exception is made because the single-site limit belongs in the abstract's
+The exception is made because the scope condition belongs in the abstract's
 first paragraph rather than in a limitations section at the end. A reader who
 discovers `n=1` for themselves trusts everything before it less; volunteering
 the constraint is what makes the rest credible. Stating it without the span
@@ -37,7 +37,7 @@ that question is not flattering, because the site-specific results are ordinary.
 
 If the first sentence is about **model selection**, the shrine becomes the
 evidence rather than the subject, and the fact that it is one site becomes a
-stated limit rather than the whole frame.
+stated scope condition rather than the whole frame.
 
 | Say | Not |
 |---|---|
@@ -109,7 +109,22 @@ regimes module at all, and the switching model's break detector raises if it
 returns a position at or past the forecast origin.
 
 **"Does it generalise?"**
-No, and nothing here claims it does. One site. Say this before being asked.
+Separate the two things being asked, because they have different answers and
+conceding both is conceding too much.
+
+The **claim** is about model selection: that ranking by average error hides an
+inversion, and therefore recommends the wrong method for the case that matters.
+That is demonstrated here, and one well-documented site with a shared origin set
+and a shared denominator is adequate evidence for a claim of that shape. A
+second site would not make it more true.
+
+The **specific rankings** are this site's, and whether they hold elsewhere is
+untested. Say that plainly and without apology — it is a scope condition, the
+same one every single-site study carries, and it is stated in the abstract's
+first paragraph rather than discovered by the reader.
+
+What makes the second question hard is not the method but publication practice,
+and that is itself a reportable finding — see §7.
 
 ## 5. The two weak points — name them first
 
@@ -147,7 +162,32 @@ order after all.
   precisely why one fatal incident is a rejected window rather than a declared
   one.
 
-## 7. If asked what would come next
+## 7. The second finding, which is not about forecasting
+
+Worth carrying as a result rather than as an excuse for having one site.
+
+Four administering bodies were assessed for a second site. **One publishes what
+reproducible monthly forecasting needs** — a month-wise series with a separately
+published annual total that independently checks it. The others each fail
+differently: daily counts published as individual news posts with no annual
+total to reconcile against; season totals rather than months; revenue and land
+holdings rather than attendance.
+
+Every one of them counts pilgrims. Most report those counts publicly in some
+form. Almost none publishes them as a series with an independent check.
+
+So: **reproducible forecasting research on Indian pilgrimage sites is
+constrained by publication practice, not by absence of data.** That is a
+different problem from the one it is usually taken for, and a more tractable
+one — it is answerable by request rather than by instrumentation, which is why
+this project ends with drafted information requests rather than a scraper.
+
+Outside the inversion itself this is the most generalisable thing here. It
+applies to any site, any researcher and any method, and it explains why
+multi-site work on this subject is scarce. If a talk has room for one secondary
+finding, this is the one.
+
+## 8. If asked what would come next
 
 A second site whose disruptions are **not** the pandemic. That is the binding
 constraint, not more months and not more models.

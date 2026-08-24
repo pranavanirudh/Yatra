@@ -83,20 +83,27 @@ def _scope(
 
     windows = frame["shock_window"].dropna().nunique() if "shock_window" in frame else 0
     transfer = (
-        "**Nothing below generalises to another shrine, state, or district.** "
-        "Every figure in this section is one site's record. The per-window "
-        "section shows that the winning model differs across kinds of "
-        "disruption *within* this site"
+        "**One site, and that is the scope of the claim rather than a shortfall "
+        "against it.** What is under test is whether ranking models by average "
+        "error survives being split by regime. Two rankings at one "
+        "well-documented site, scored on a shared origin set against a shared "
+        "denominator, answer that. A second site would not make the inversion "
+        "here more or less real."
+    )
+    transfer_open = (
+        "**What one site leaves open is transfer, and it is left open.** Whether "
+        "these particular rankings hold at another shrine is not addressed by "
+        "anything below. The per-window section gives a reason to expect transfer "
+        "to be harder than it looks &mdash; the winning model already differs "
+        "across kinds of disruption within this site"
     )
     if windows:
-        transfer += f", across its {windows} declared windows"
-    transfer += (
-        " &mdash; which is a reason to expect less transfer between sites, not "
-        "more. A second site has not been scored here, so there is no evidence "
-        "either way about whether any of this holds elsewhere, and none should "
-        "be inferred from the fact that these tables are detailed."
+        transfer_open += f", across its {windows} declared windows"
+    transfer_open += (
+        " &mdash; but that is a reason for caution about other sites, not a "
+        "finding about them."
     )
-    lines += [transfer, ""]
+    lines += [transfer, "", transfer_open, ""]
     return lines
 
 

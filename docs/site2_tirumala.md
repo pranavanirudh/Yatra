@@ -236,8 +236,9 @@ tolerance added to admit one site is a tolerance that admits everything after.
 
 ### What to do instead
 
-**File an RTI request with TTD**, on the same reasoning and largely the same
-wording as [data_request_kedarnath.md](data_request_kedarnath.md). A reply
+**File an RTI request with TTD.** It is drafted at
+[data_request_tirumala.md](data_request_tirumala.md), on the same reasoning as
+[data_request_kedarnath.md](data_request_kedarnath.md). A reply
 carrying both month-wise figures *and* separately-compiled annual totals
 satisfies the contract exactly, and an RTI reference number is a stronger
 citation than 2,230 individual URLs.

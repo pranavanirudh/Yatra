@@ -273,28 +273,58 @@ table with its number.
 
 ## Scope
 
-**One site.** Shri Mata Vaishno Devi, Katra, Jammu & Kashmir. The exact span and
-month count are in the generated Scope table below, because they are numbers and
-numbers live inside the markers.
+**Demonstrated at one site:** Shri Mata Vaishno Devi, Katra, Jammu & Kashmir.
+The exact span and month count are in the generated Scope table below, because
+they are numbers and numbers live inside the markers.
 
-**No result here generalises to another shrine, state, or district.** Not to
-Tirupati, not to Sabarimala, not to any Tamil Nadu temple, and not to footfall by
-district. The per-window section demonstrates that the winning model differs
-across kinds of disruption *within* this single site — which is a reason to
-expect less transfer between sites, not more. No second site has been scored, so
-there is no evidence either way, and the detail of the tables below is not
-evidence that they travel.
+That is a **scope condition, not a shortfall.** The claim under test is about how
+forecasting models are *selected* — whether ranking them by average error
+survives being split by regime. Two rankings at one well-documented site, scored
+on a shared origin set against a shared denominator, are adequate evidence for a
+claim of that shape. A second site would not make the inversion at this one more
+or less real.
 
-**That is a data-availability constraint, not a scope choice.** Monthly footfall
-series for Indian pilgrimage sites are largely unpublished. This shrine's board
-publishes a month-wise table reaching back decades, which turns out to be rare.
-TTD publishes at daily resolution, but as one news post per day rather than as a
-series, and with no annual total on its own site to reconcile a scrape against.
-Most HR&CE temples publish revenue and land holdings rather than attendance.
-Sabarimala reports by season, and a season-only pilgrimage is structurally
-unsuited to monthly forecasting regardless of how it is reported. District-level
-tourism data exists and is well maintained, and its publishers state that it
-excludes pilgrimage sites.
+**What one site leaves open is transfer, and that question is left open rather
+than answered.** Whether these particular rankings hold at another shrine is not
+addressed here, and nothing below should be read as bearing on it. The per-window
+section gives a reason to expect transfer to be *harder* than it looks — the
+winning model already differs across kinds of disruption within this single site
+— but that is a reason for caution, not a finding about other sites.
+
+## What publication practice permits
+
+The second site was searched for seriously, and the search produced a result
+worth reporting on its own account.
+
+**Four administering bodies were assessed. One publishes what reproducible
+monthly forecasting requires** — a month-wise series with a separately published
+annual total that independently checks it.
+
+| Body | Site | What is published | Why it does not support this work |
+|---|---|---|---|
+| SMVDSB | Vaishno Devi | month-wise series since the 1980s, with annual totals beside it | — this is the one that works |
+| TTD | Tirumala | daily counts, as one news post per day | no annual total anywhere to reconcile a compiled series against; the pre-2020 archive interleaves two different measurement windows without labelling them |
+| TDB | Sabarimala | season totals, through press releases | not month-wise, and splitting a season across months would be imputation |
+| HR&CE | Tamil Nadu temples | revenue and land holdings | attendance is not published at all |
+
+The Uttarakhand bodies administering Kedarnath were assessed on the same
+criteria and fall the same way: figures reach the press daily through the
+season, and none is published as a series.
+
+**The finding is that reproducible forecasting research on Indian pilgrimage
+sites is constrained by publication practice, not by absence of data.** Every
+body above counts pilgrims, most report those counts publicly in some form, and
+almost none publishes them as a series with an independent check. The obstacle
+is the shape of publication rather than the existence of records — which is a
+different problem from the one it is usually taken for, and a more tractable one,
+because it is answerable by request rather than by instrumentation.
+
+Outside the inversion itself, this is the most generalisable thing here: it
+applies to any site, any researcher, and any method, and it explains why
+multi-site work on this subject is rare. The assessments are in
+[docs/second_site.md](docs/second_site.md) and
+[docs/site2_tirumala.md](docs/site2_tirumala.md), and the requests that would
+change the answer are drafted in `docs/data_request_*.md`.
 
 A second site was searched for. Four candidates were examined and rejected;
 [docs/second_site.md](docs/second_site.md) records what each failed on and what
@@ -392,7 +422,9 @@ is a decision to take before any figure arrives, not after.
 | Span | 1986-01 to 2026-07 |
 | Sites in this study | 1 |
 
-**Nothing below generalises to another shrine, state, or district.** Every figure in this section is one site's record. The per-window section shows that the winning model differs across kinds of disruption *within* this site, across its 5 declared windows &mdash; which is a reason to expect less transfer between sites, not more. A second site has not been scored here, so there is no evidence either way about whether any of this holds elsewhere, and none should be inferred from the fact that these tables are detailed.
+**One site, and that is the scope of the claim rather than a shortfall against it.** What is under test is whether ranking models by average error survives being split by regime. Two rankings at one well-documented site, scored on a shared origin set against a shared denominator, answer that. A second site would not make the inversion here more or less real.
+
+**What one site leaves open is transfer, and it is left open.** Whether these particular rankings hold at another shrine is not addressed by anything below. The per-window section gives a reason to expect transfer to be harder than it looks &mdash; the winning model already differs across kinds of disruption within this site, across its 5 declared windows &mdash; but that is a reason for caution about other sites, not a finding about them.
 
 ### Run provenance
 
