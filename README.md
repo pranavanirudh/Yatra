@@ -555,8 +555,9 @@ src/yatra/       contract, regimes, ephemeris, panchanga, calendarfeat,
 experiments/     configs. Nothing numeric is hardcoded in src/.
 data/raw/        observations. Owner-supplied, never generated.
 results/         committed artefacts. metrics.csv is the source of truth.
-docs/            the spec, the data schema, the ephemeris decision, and the
-                 second-site search that did not find one.
+docs/            the spec, the data schema, the ephemeris decision, the
+                 second-site search that did not find one, and how to present
+                 the finding without overstating it.
 tests/           pytest.
 ```
 
