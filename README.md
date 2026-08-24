@@ -325,20 +325,35 @@ this project computes. Replication across those differences is worth more than
 another pandemic window. Failure to replicate is worth more still, and would be
 reported as prominently.
 
-**Training depth will differ between the sites and is reported, not buried.**
-Tirumala's published daily figures do not reach back anything like as far as
-this shrine's monthly table, so the two sites cannot be given the same run-up
-before their first forecast origin. Where that differs it is stated in this
-README rather than left in config; per-site origin counts appear wherever a
-site comparison appears; and **the two sites are never pooled into a single
-averaged number.** A combined leaderboard is the natural thing to reach for when
-presenting two sites, and it is precisely the move this project exists to argue
-against — averaging across heterogeneous regimes produces a number that
-describes none of them, and sites are more heterogeneous than regimes.
+**Its usable series is short, and it starts inside the pandemic.** The archive
+depth has now been measured rather than estimated, from the site's own sitemaps.
+Daily statistics in a consistent, machine-readable convention begin in mid-2020
+— at the reopening — and run to the present. Posts exist back to 2013, but the
+pre-2020 ones interleave a partial-day and a full-day figure without reliably
+saying which is which, and most dates carry two competing values, so extending
+the series backwards is an adjudication problem across thousands of ambiguous
+records rather than a collection problem that effort solves.
 
-Depth, collection mechanics and a candidate non-pandemic shock to check during
-collection are assessed in [docs/site2_tirumala.md](docs/site2_tirumala.md).
-Nothing has been transcribed and `data/raw/` is untouched.
+That matters more than the month count alone. A second site whose clean months
+are nearly all post-recovery is a weaker test of a clean-versus-shock contrast
+than the same number of months from an undisturbed period would be.
+
+**Training depth therefore differs between the sites, and is reported rather
+than buried.** The two cannot be given the same run-up before their first
+forecast origin. Where that differs it is stated in this README rather than left
+in config; per-site origin counts appear wherever a site comparison appears; and
+**the two sites are never pooled into a single averaged number.** A combined
+leaderboard is the natural thing to reach for when presenting two sites, and it
+is precisely the move this project exists to argue against — averaging across
+heterogeneous regimes produces a number that describes none of them, and sites
+are more heterogeneous than regimes.
+
+The requirement for a published annual total to reconcile a compiled series
+against is unchanged and still unmet, and measuring the depth did not address
+it. Depth, collection mechanics and a candidate non-pandemic shock to check
+during collection are assessed in
+[docs/site2_tirumala.md](docs/site2_tirumala.md). Nothing has been transcribed
+and `data/raw/` is untouched.
 
 One further candidate is open rather than rejected. **Kedarnath** is the only site
 examined whose major disruptions are not the pandemic — which is the thing this

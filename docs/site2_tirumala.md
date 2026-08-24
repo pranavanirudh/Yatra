@@ -10,64 +10,99 @@ asked of a second site, not the answer about its shocks.
 
 ---
 
-## 1. Archive depth — the number that decides viability
+## 1. Archive depth — measured, not estimated
 
-**Established:** the daily statistics are published as individual posts on
-`news.tirumala.org`, and the site exposes **WordPress-style month archives** at
-`/YYYY/MM/`. A December 2019 archive page is indexed and reachable.
-Search indexing also surfaces category archives referencing 2016–2018.
-
-**Not established, and this is the one that matters:** whether the *daily
-darshan statistics series* runs as far back as the site's general news does.
-Those are different questions. A news site can carry press releases from 2016
-while the daily figures began later, and only the second is a series.
-
-**Blocked at the transport layer.** `news.tirumala.org` fails TLS certificate
-verification from this environment — automated fetching does not get as far as
-`robots.txt`. Archive.org is likewise unreachable from here, so the usual
-fallback for establishing depth is closed too.
-
-### What a human with a browser must establish
-
-Walk the month archives backwards and record, for each month, whether a daily
-statistics post exists:
+**Two corrections to an earlier draft of this file, recorded rather than
+silently fixed.** It said the site was blocked at the transport layer and that a
+human with a browser would have to walk the month archives. Neither is true. The
+TLS failure was in one fetch tool, not on the owner's machine, where the site
+answers `200`. And `robots.txt` **allows** everything except `/wp-admin/`, and
+advertises a sitemap:
 
 ```
-https://news.tirumala.org/2019/12/
-https://news.tirumala.org/2019/11/
-...
+User-agent: *
+Disallow: /wp-admin/
+Allow: /wp-admin/admin-ajax.php
+Sitemap: https://news.tirumala.org/wp-sitemap.xml
 ```
 
-Stop at the first month with no daily figures. That month, minus one, is the
-start of the usable series. Record it before anything else is planned.
+So depth was measured directly, from 14 post sitemaps carrying **27,892 indexed
+posts** with `lastmod` dates. Nothing was transcribed: what follows is a count
+of posts and a reading of URL slugs.
 
-### Why the answer changes the design
+### The answer: a consistent daily series runs 2020-06 to 2026-08
 
-| If the series starts | Usable months to 2026-08 | Consequence |
-|---|---:|---|
-| 2016-01 | ~128 | Two full seasonal cycles of training before the first origin is still tight but workable |
-| 2019-01 | ~92 | COVID sits close to the start; few clean months precede it |
-| 2021-01 | ~68 | Barely any pre-COVID baseline; the clean regime is mostly recovery |
+That is **75 months**, against this shrine's 487.
 
-Against this shrine's 487 months, every one of those is short. **`min_train`
-will have to differ by site**, and that asymmetry is a reporting obligation
-rather than a config detail — see §5.
-
-### One piece of good news for collection
-
-The daily figure is carried **in the post title and in the URL slug**:
+Daily statistics posts in the current convention carry the date *and the count*
+in the slug:
 
 ```
 /total-pilgrims-who-had-darshan-on-01-01-2025-69630/
 ```
 
-So the date and the count are both readable without opening the page. That
-makes an index of month-archive links sufficient to build the series, and makes
-a human pass far cheaper than reading several thousand articles. It does not
-change the citation problem: each value still carries its own URL, and there is
-still no published annual total to reconcile a compiled series against — which
-is the objection recorded in [second_site.md](second_site.md) §2 and remains
-unanswered.
+There are 2,230 of them, at roughly 365 a year from 2021 onward — complete daily
+coverage. Five months are short of a full complement (2020-06 has 6, 2020-07 has
+18, 2023-01 has 16, 2025-11 has 20, and 2026-08 is the current month). A month
+missing days is a partial month and must be recorded missing, not summed.
+
+**The series begins inside the pandemic.** June 2020 is not a neutral start
+date: it is the reopening. Tirumala would arrive with almost no pre-COVID clean
+baseline, so its clean regime would be substantially post-recovery. For a
+project whose claim is a contrast between clean and shock months, a second site
+whose clean months are nearly all post-2021 is a weaker replication than the
+month count alone suggests.
+
+### Why the archive reaching 2013 does not extend the series
+
+The oldest indexed post is dated 2013-10-03, and posts exist in every year from
+2013. This is exactly the distinction flagged before the measurement — archive
+depth is not series depth — and it resolves against the site.
+
+Pre-2020 posts do carry counts, in a prose slug:
+
+```
+/about-32124-pilgrims-had-srivari-darshan-from-3am-to-6pm-on-october-24/
+```
+
+There are 1,809 such posts spanning 2013–2021. They are not usable as a series
+without per-record adjudication, for three compounding reasons:
+
+**The slug has no year.** The date is prose — `on-october-24`, `on-dec-31` — so
+the year must come from `lastmod`, which is a *modification* timestamp and not a
+publication date. The same month-day string recurs across years.
+
+**Two different quantities are interleaved.** 855 posts state a window of
+`3am-to-6pm`; **934 state no window at all**; a handful state `3am-to-7pm`,
+`4am-to-10pm`, `2am-to-6pm`. The window is not fixed and is often absent.
+
+**Most dates carry competing figures.** 570 date-keys have two or more posts
+between them, covering 1,146 of the 1,809 — about 63%. The paired values are not
+near-duplicates:
+
+| Date key | Competing counts |
+|---|---|
+| 2013 `on-december-15` | 40,057 and 72,528 |
+| 2013 `on-december-21` | 40,894 and 64,836 |
+| 2013 `on-december-22` | 4,344 and 68,289 |
+| 2014 `on-april-17` | 35,200 and 55,384 |
+
+The pattern is consistent with one post reporting a partial day and the other
+the full day. Choosing wrong roughly halves the series, and **934 posts do not
+state which they are.** Extending Tirumala before 2020 is therefore not a
+scraping problem that effort solves; it is an adjudication problem across
+~1,800 records, most of which are ambiguous by construction.
+
+### What this does to the design
+
+`min_train` must differ by site — see §5 — and the gap is larger than the raw
+month counts imply, because 75 months starting at a reopening contains fewer
+usable clean origins than 75 months anywhere else would.
+
+The annual-reconciliation objection is **unchanged and still unanswered**. A
+series compiled from 2,230 individual posts has nothing independent to check it
+against, and `docs/data_schema.md` requires exactly that. Measuring the depth
+did not address it, and the depth being adequate would not have.
 
 ## 2. What site 2 tests, and what it does not
 
@@ -150,10 +185,14 @@ makes it a pattern.
 
 ## 4. Structural notes to settle before collection
 
-- **Counting basis.** Darshan counts, not gate entries. Establish whether the
-  published figure is the same quantity throughout the archive, and whether it
-  changed when caps or virtual-queue systems were introduced. A definitional
-  change mid-series is a break that no model should be asked to explain.
+- **Counting basis.** Darshan counts, not gate entries. The question of whether
+  the published figure is the same quantity throughout is now **answered, and
+  the answer is no** — see §1. Before 2020 the archive interleaves a partial-day
+  and a full-day figure without reliably labelling which is which. Within the
+  2020-06 onward series the convention is stable, which is the main reason to
+  treat that window as the series and the rest as background.
+  A definitional change mid-series is a break no model should be asked to
+  explain, and splicing the two eras would introduce one deliberately.
 - **Annual reconciliation.** Still unsolved. `docs/data_schema.md` requires a
   published annual total that is an independent check, and TTD publishes none on
   its own site. A compiled series with nothing to reconcile against does not
