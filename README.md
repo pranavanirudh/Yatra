@@ -28,7 +28,7 @@ All 9 models, ranked in each regime and joined. The two picked out are the winne
 
 **What this costs you at selection time.** A leaderboard averaged over all months recommends `sarimax_cal`, which ranks 4 of 9 in exactly the months a forecast would have mattered — and it discards `naive`, which is the one that wins there. Averaging over regimes does not lose precision so much as invert the recommendation.
 
-Scored on one shared origin set against one shared MASE denominator, so the two columns are comparable. The evidence behind each claim, the bootstrap intervals and the boundary sensitivity are in [Results](#results).
+Scored on one shared origin set against one shared MASE denominator, so the two columns are comparable. The evidence behind each claim, the bootstrap intervals and the boundary sensitivity are in [Results](#results); what this project has deliberately left open, and why each item waits on someone's authority rather than on someone's time, is in [What is deliberately unfinished](#what-is-deliberately-unfinished).
 
 <!-- END LEAD -->
 
@@ -685,6 +685,52 @@ What follows for the reader is not that the split is provisional, but that it is
 <!-- END GENERATED -->
 
 ---
+
+## What is deliberately unfinished
+
+Three things in this repository are open. None of them is a task nobody got
+round to. Each is blocked on an authority this project does not hold, and in
+each case supplying the missing piece from inside the repository would produce
+output indistinguishable from the real thing — which is the specific failure
+this whole design is built to prevent. They are collected here so a reader does
+not have to reconstruct the list from footnotes.
+
+**The briefing carries no resourcing ratios.** `make operations` forecasts
+volumes and stops there: no marshals per thousand pilgrims a day, no medical
+posts, no gate counts. Those are site policy, set by people with operational
+authority over the track. A ratio invented here would render in the briefing
+table in the same typeface as one signed off by an operations lead, and nothing
+in the output would tell a reader which they were looking at. So the config
+ships its ratio list empty, the briefing says so in place of a table, and a test
+asserts it stays empty — see the working agreement in [CLAUDE.md](CLAUDE.md).
+What unblocks this is a signature, not a commit.
+
+**Three of the five shock windows are marked unverified, and are meant to stay
+that way.** Two are anchored to announcements — a suspension, a resumption — and
+were checked against primary reporting. The other three are phase boundaries
+*within* a longer disruption, and nobody announced where one phase ended and the
+next began; this project inferred them from the observed series. A citation
+cannot evidence an inference, so marking them verified would launder a judgement
+into a source — a worse defect than the label it would remove. The sensitivity
+arm exists to test whether those boundaries carry the result, and it reports the
+answer either way. The label is a finding about the evidence, not an
+outstanding chore.
+
+**No second site has been collected, and the search is itself a result.**
+Tirumala is the selected candidate, on the reasoning above. What stops it is
+that TTD publishes no annual total, and the data contract requires one that
+independently checks the monthly series; summing a scrape into that slot would
+be the scrape checking itself. Requests to TTD and to the Kedarnath authorities
+are drafted in `docs/data_request_*.md` and unsent. Sending them is
+correspondence rather than code, and until one is answered `data/raw/` stays as
+it is. The single-site limit is the [scope of the claim](#scope), not a
+shortfall against it: the claim is about how forecasting models are *selected*,
+and two rankings at one well-documented site are evidence of that shape.
+
+The common structure is worth naming. Every one of these could be closed this
+afternoon by inventing the missing piece, and in every case the invented version
+would be indistinguishable, in the generated output, from a real one. Leaving
+them visible costs less than that would.
 
 ## Layout
 

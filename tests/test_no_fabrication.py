@@ -271,3 +271,64 @@ def test_every_indexed_document_carries_a_status():
         cells = [cell.strip() for cell in row.strip("|").split("|")]
         assert len(cells) >= 3, f"Index row is malformed: {row!r}"
         assert cells[1], f"Index row has an empty status column: {row!r}"
+
+
+def _github_anchor(heading: str) -> str:
+    """The fragment GitHub generates for a Markdown heading.
+
+    Lowercase, punctuation dropped, spaces to hyphens. Enough of the rule to
+    check the handful of plain-prose headings this README actually has.
+    """
+    slug = re.sub(r"[^\w\s-]", "", heading.strip().lower())
+    return "#" + re.sub(r"\s+", "-", slug)
+
+
+def test_the_leads_forward_link_resolves_to_a_real_heading():
+    """The lead points at the open items; that pointer must land somewhere.
+
+    The lead is generated and the section it links to is hand-written, so
+    nothing couples them except this test. A heading renamed on one side leaves
+    a link that renders fine, clicks to nowhere, and takes the project's
+    disclosure of what it has not done out of reach of the one reader who
+    followed the finding far enough to want it. Nothing else would fail.
+    """
+    text = (ROOT / "README.md").read_text(encoding="utf-8")
+
+    headings = [
+        line.lstrip("#").strip()
+        for line in text.splitlines()
+        if line.startswith("#")
+    ]
+    anchors = {_github_anchor(h) for h in headings}
+
+    assert report.OPEN_ITEMS_ANCHOR in anchors, (
+        f"The lead links to {report.OPEN_ITEMS_ANCHOR}, which no README "
+        f"heading produces. Headings present: {sorted(anchors)}"
+    )
+    assert report.OPEN_ITEMS_HEADING in headings, (
+        "The lead's link text is not a heading in the README; the two have "
+        "drifted apart."
+    )
+    assert report.OPEN_ITEMS_ANCHOR in report.render_lead(), (
+        "The generated lead no longer carries the forward link to the open "
+        "items."
+    )
+
+
+def test_the_open_items_section_covers_all_three():
+    """All three open items are disclosed in one place, not scattered.
+
+    The section exists so a reader meets the whole list at once. An item
+    quietly dropped from it would leave the project looking more finished than
+    it is, which is the direction this repository is least entitled to err in.
+    """
+    text = (ROOT / "README.md").read_text(encoding="utf-8")
+    _, _, rest = text.partition(f"## {report.OPEN_ITEMS_HEADING}")
+    section, _, _ = rest.partition("\n## ")
+    assert section.strip(), "The open-items section is empty."
+
+    for token in ("ratio", "unverified", "second site"):
+        assert token in section.lower(), (
+            f"The open-items section does not mention {token!r}. All three "
+            "open items belong here."
+        )

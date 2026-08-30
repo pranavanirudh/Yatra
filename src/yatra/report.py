@@ -36,6 +36,15 @@ LEAD_END = "<!-- END LEAD -->"
 #: inline so the lead and the figure stage cannot drift apart silently.
 HERO_FIGURE = "results/figures/inversion_hero.png"
 
+#: The lead closes by pointing at the README's open items, because a reader who
+#: takes the finding at face value should meet the limits in the same breath.
+#: Named here, and asserted against a real heading by
+#: tests/test_no_fabrication.py, because a forward link that quietly stops
+#: resolving is the same class of failure as a builder missing from a tuple:
+#: nothing breaks, and the disclosure simply stops being reachable.
+OPEN_ITEMS_HEADING = "What is deliberately unfinished"
+OPEN_ITEMS_ANCHOR = "#what-is-deliberately-unfinished"
+
 #: Below this many non-COVID shock windows, any COVID-versus-other contrast in
 #: the per-window section is qualified in the generated text. The COVID windows
 #: are subdivisions of one event, so every "these disagree" correlation is the
@@ -328,7 +337,10 @@ def _lead(table: pd.DataFrame, pooled: pd.Series) -> list[str]:
             "Scored on one shared origin set against one shared MASE "
             "denominator, so the two columns are comparable. The evidence "
             "behind each claim, the bootstrap intervals and the boundary "
-            "sensitivity are in [Results](#results).",
+            "sensitivity are in [Results](#results); what this project has "
+            "deliberately left open, and why each item waits on someone's "
+            "authority rather than on someone's time, is in "
+            f"[{OPEN_ITEMS_HEADING}]({OPEN_ITEMS_ANCHOR}).",
             "",
         ]
     )
