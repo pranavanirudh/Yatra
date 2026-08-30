@@ -74,14 +74,44 @@ Do not undo these without saying so out loud.
 
 ### 3.1 The README's numbers are generated, not typed
 
-`report.py` reads `results/metrics.csv` and rewrites everything between the
-`<!-- BEGIN GENERATED -->` and `<!-- END GENERATED -->` markers. This is how
-constraint 2 ("every README number traces to a row in metrics.csv") is made
-mechanical rather than aspirational. If you find yourself typing a number into
-the README, you are doing it wrong — put it in the generator.
+`report.py` owns **two** regions of the README and rewrites each wholesale:
+
+| Region | Markers | Written by |
+|---|---|---|
+| The first screen — the finding, the rank table, the hero figure | `<!-- BEGIN LEAD -->` / `<!-- END LEAD -->` | `report.render_lead()` |
+| The results section — leaderboard, ablations, horizons, sensitivity | `<!-- BEGIN GENERATED -->` / `<!-- END GENERATED -->` | `report.render()` |
+
+This is how constraint 2 ("every README number traces to a row in
+metrics.csv") is made mechanical rather than aspirational. If you find yourself
+typing a number into the README, you are doing it wrong — put it in the
+generator.
+
+Two regions rather than one because the finding belongs above the fold and the
+method belongs below it, and neither may be hand-typed. The lead is the block
+most likely to be quoted into a slide or an abstract and the least likely to be
+re-checked against the CSV first, which makes it the worst place in the
+repository for a rank a re-run has since moved. `update_readme` raises on a
+missing marker pair rather than creating one: the generator does not guess at
+document structure.
+
+The rank table itself is rendered by one function, `_rank_table`, and shown in
+both regions. Rendering it twice independently would let an edit to one leave a
+visitor reading ranks the results section contradicts further down.
+
+**The lead's closing sentence is about a third ranking.** It says what a
+leaderboard *averaged over all months* would recommend — neither of the two
+columns in the table above it. That model is read from the pooled column in
+`_selection_cost`, never inferred from the clean winner. The two coincide on the
+committed record only because ordinary months outnumber disrupted ones by more
+than ten to one, which is a property of this sample and not of the method. The
+function branches on all three cases (pooling picks the clean winner, the shock
+winner, or neither) because the paragraph claims something different in each,
+and `tests/test_report_lead.py` exercises each branch.
 
 Prose outside the markers is hand-written and survives regeneration. Prose
-outside the markers must not contain numbers.
+outside every marker pair must not contain numbers;
+`tests/test_no_fabrication.py` strips both regions and asserts what is left has
+no decimal or thousands-grouped figure in it.
 
 ### 3.2 MASE has exactly one denominator
 

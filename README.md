@@ -1,7 +1,40 @@
 # Yatra
 
-Regime-separated forecasting of pilgrimage footfall at Shri Mata Vaishno Devi,
-Katra, Jammu & Kashmir.
+Regime-separated forecast evaluation: rank inversions a pooled leaderboard
+hides. Monthly pilgrimage footfall at Shri Mata Vaishno Devi, Katra, Jammu &
+Kashmir.
+
+<!-- BEGIN LEAD -->
+
+## The finding
+
+Rank 9 forecasting models by average error on ordinary months, then rank them again on disrupted months, and the two orders disagree: **`sarimax_cal` wins on ordinary months but ranks 4 of 9 during shocks, while `naive` wins during shocks but ranks 8 of 9 on ordinary months.**
+
+| Model | Clean MASE | Rank | Shock MASE | Rank | Rank change |
+|---|---:|---:|---:|---:|---:|
+| `sarimax_cal` | 1.354 | 1 | 4.616 | 4 | +3 |
+| `sarima` | 1.372 | 2 | 4.562 | 3 | +1 |
+| `holt_winters_add` | 1.431 | 3 | 5.979 | 9 | +6 |
+| `switching` | 1.435 | 4 | 5.870 | 8 | +4 |
+| `switching_sticky` | 1.516 | 5 | 5.624 | 6 | +1 |
+| `seasonal_naive` | 1.520 | 6 | 5.724 | 7 | +1 |
+| `theta` | 1.964 | 7 | 4.760 | 5 | -2 |
+| `naive` | 4.155 | 8 | 3.133 | 1 | -7 |
+| `drift` | 4.197 | 9 | 3.147 | 2 | -7 |
+
+All 9 models, ranked in each regime and joined. The two picked out are the winner of each regime; the rest are drawn in grey rather than dropped. The lines cross.
+
+![Slope chart: each model's rank on ordinary months joined to its rank on disrupted months. The line for `sarimax_cal` falls from first to 4 and the line for `naive` rises from 8 to first, crossing in the middle.](results/figures/inversion_hero.png)
+
+**What this costs you at selection time.** A leaderboard averaged over all months recommends `sarimax_cal`, which ranks 4 of 9 in exactly the months a forecast would have mattered — and it discards `naive`, which is the one that wins there. Averaging over regimes does not lose precision so much as invert the recommendation.
+
+Scored on one shared origin set against one shared MASE denominator, so the two columns are comparable. The evidence behind each claim, the bootstrap intervals and the boundary sensitivity are in [Results](#results).
+
+<!-- END LEAD -->
+
+---
+
+## What was being tested
 
 The question is not "which forecasting model is best". It is whether the answer
 to that question changes depending on whether the month was ordinary or
@@ -13,7 +46,9 @@ holds, then a leaderboard averaged over all months does not merely lose
 precision — it recommends the model that fails exactly when a forecast would
 have mattered.
 
----
+The table above is the test of that, and the sections below are what makes it
+checkable: where the observations came from, how the regimes were declared, how
+the models were scored against each other, and how to re-run the whole thing.
 
 ## Status
 
@@ -667,3 +702,22 @@ tests/           pytest.
 
 See [CLAUDE.md](CLAUDE.md) for the working agreement and
 [docs/claude_code_brief.md](docs/claude_code_brief.md) for the spec.
+[docs/README.md](docs/README.md) indexes every document in `docs/` with a status
+against each, because several of them record decisions that were later revised
+and this project keeps superseded reasoning rather than deleting it.
+
+## Licence
+
+The code is MIT, per [LICENSE](LICENSE).
+
+**The observations are not this project's to licence, and the MIT grant does not
+reach them.** The series under `data/raw/` is transcribed from the shrine
+board's published month-wise figures; every row carries the source id it came
+from, and `data/raw/sources.yaml` names the publisher. Reuse of those counts is
+governed by whatever terms the publisher attaches to them, not by this file.
+The same goes for the shock-window citations in
+`experiments/configs/shocks.yaml`, which point at reporting this project does
+not own.
+
+What the licence does cover is the apparatus: the contract, the calendar layer,
+the model registry, the backtest and everything generated into `results/`.

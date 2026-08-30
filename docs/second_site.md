@@ -4,6 +4,12 @@ Scoped 2026-08-22, at the owner's request, after the question was raised of
 whether this project could cover Tirupati, Sabarimala, Velankanni,
 Tiruvannamalai, or footfall by district rather than one shrine.
 
+> **The Tirumala verdict below was later reversed.** This file rejected it;
+> [site2_tirumala.md](site2_tirumala.md) is the live second-site decision and
+> explains what changed — the question being asked of a second site, not the
+> answer about its shocks. Everything else here stands. See
+> [README.md](README.md) for the status of every document in this folder.
+
 **No second site was added.** This file records what was searched and why each
 candidate failed, for the same reason `experiments/configs/shocks.yaml` keeps
 its rejected windows: without the record, a later reader cannot tell a site that
@@ -12,10 +18,18 @@ evidence; the first is an omission.
 
 ---
 
-**Status.** Four candidates are rejected. One — **Kedarnath** — is open, pending
-a data request, and is the only one whose disruptions are not the pandemic. That
-distinction became the deciding criterion after the per-window analysis showed
-this project's non-COVID evidence is a single window; see section 1.
+**Status, as of this file's own scoping.** Four candidates are rejected. One —
+**Kedarnath** — is open, pending a data request, and is the only one whose
+disruptions are not the pandemic. That distinction became the deciding criterion
+after the per-window analysis showed this project's non-COVID evidence is a
+single window; see section 1.
+
+**Status now.** **Tirumala** is site 2, reversing the verdict this file records
+for it; see [site2_tirumala.md](site2_tirumala.md). **Kedarnath** remains open on
+exactly the terms below — its figures would need requesting, and the
+seasonal-zero problem is a decision about the modelling frame that no data
+settles. The other three rejections stand. Nothing has been collected and
+`data/raw/` is untouched.
 
 ## 1. Why a second site is the right thing to want
 
@@ -128,7 +142,16 @@ add this site has to answer that separately — probably by modelling the open
 season rather than the calendar year, which is a change to the frame and not a
 change to the data.
 
-### Tirumala / Tirupati (TTD) — rejected; the strongest candidate before Kedarnath
+### Tirumala / Tirupati (TTD) — rejected here, and later chosen as site 2
+
+**This verdict no longer holds.** Tirumala is site 2; the assessment that
+reversed it is [site2_tirumala.md](site2_tirumala.md), which measured the archive
+rather than estimating it and re-weighed what a second site is *for*. The
+reasoning below is kept because it is still correct about Tirumala's shocks —
+what it got wrong was treating non-pandemic shock evidence as the only thing a
+second site could contribute, when replication of the headline inversion across
+a different counting basis and a different pilgrim population is worth more. The
+paragraph as originally written follows.
 
 **Superseded by Kedarnath above**, on the reasoning in section 1: Tirumala's
 dominant disruption is COVID, which this project already holds in four

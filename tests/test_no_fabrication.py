@@ -96,28 +96,97 @@ def test_report_refuses_to_render_without_metrics(tmp_path: Path):
         report.render(tmp_path / "metrics.csv")
 
 
+#: Every region of the README that report.py owns and rewrites wholesale. The
+#: lead is the first screen; the other is the results section. Both carry
+#: numbers, and neither may be hand-typed.
+GENERATED_REGIONS = (
+    (report.LEAD_BEGIN, report.LEAD_END),
+    (report.BEGIN, report.END),
+)
+
+
+def _strip_generated(text: str) -> str:
+    """README text with every generated region removed.
+
+    Raises rather than skipping a region whose markers are absent: a silently
+    unstripped block would make the prose test below pass by having nothing
+    left to object to, which is the opposite of what it is for.
+    """
+    for begin, end in GENERATED_REGIONS:
+        if begin not in text or end not in text:
+            raise AssertionError(f"README is missing the {begin} / {end} markers.")
+        head, _, rest = text.partition(begin)
+        _, _, tail = rest.partition(end)
+        text = head + tail
+    return text
+
+
 def test_readme_has_the_generated_markers():
+    """Both generated regions are present and correctly ordered."""
     text = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert report.BEGIN in text and report.END in text
-    assert text.index(report.BEGIN) < text.index(report.END)
+    for begin, end in GENERATED_REGIONS:
+        assert begin in text and end in text, f"README lacks {begin} / {end}"
+        assert text.index(begin) < text.index(end), f"{end} precedes {begin}"
+
+    # The lead is the first screen, so it must come before the results section.
+    assert text.index(report.LEAD_END) < text.index(report.BEGIN), (
+        "The lead block must precede the results block. A visitor reads the "
+        "first screen first, and that is the point of generating it separately."
+    )
+
+
+def test_the_readme_lead_is_generated_not_typed():
+    """The committed first screen must equal what report.py renders now.
+
+    This is what makes "the headline table is covered by the generator" true
+    rather than aspirational. Hand-editing a rank into the lead -- the single
+    most quoted and least re-checked block in the repository -- fails here.
+    """
+    text = (ROOT / "README.md").read_text(encoding="utf-8")
+    _, _, rest = text.partition(report.LEAD_BEGIN)
+    committed, _, _ = rest.partition(report.LEAD_END)
+
+    assert committed.strip() == report.render_lead().strip(), (
+        "README's lead block differs from report.render_lead(). Run "
+        "`make report` rather than editing the first screen by hand."
+    )
+
+
+def test_the_lead_and_the_results_section_show_the_same_ranks():
+    """One rank table, rendered twice, never two tables that can disagree.
+
+    The first screen and the results section both show the clean-versus-shock
+    leaderboard. If they were rendered independently, an edit to one would
+    leave a visitor reading ranks the results section contradicts further down.
+    """
+    lead = report.render_lead()
+    body = report.render()
+
+    rows = [line for line in lead.splitlines() if line.startswith("| `")]
+    assert rows, "The lead block contains no model rows."
+    for row in rows:
+        assert row in body, (
+            f"Lead row {row!r} does not appear in the results section. The two "
+            "renderings have drifted; both must come from report._rank_table."
+        )
 
 
 def test_hand_written_readme_prose_contains_no_statistics():
     """Every number in the README must trace to a row in metrics.csv.
 
-    The mechanism is that report.py owns the generated block. This test guards
-    the other half: that nobody types a result into the prose around it. Prose
-    outside the markers may not contain a decimal number or a thousands-grouped
+    The mechanism is that report.py owns the generated regions -- the first
+    screen and the results section. This test guards the other half: that
+    nobody types a result into the prose around them. Prose outside every
+    marker pair may not contain a decimal number or a thousands-grouped
     integer, which is what a MASE, a correlation or a forecast count looks like.
     """
     import re
 
     text = (ROOT / "README.md").read_text(encoding="utf-8")
-    head, _, rest = text.partition(report.BEGIN)
-    _, _, tail = rest.partition(report.END)
+    prose = _strip_generated(text)
 
     pattern = re.compile(r"(?<![\w.])(\d+\.\d+|\d{1,3}(?:,\d{3})+)(?![\w])")
-    offenders = pattern.findall(head) + pattern.findall(tail)
+    offenders = pattern.findall(prose)
     assert not offenders, (
         f"Numbers found in hand-written README prose: {offenders}. Results belong "
         "inside the generated block, where they trace to metrics.csv."
@@ -148,3 +217,57 @@ def test_shock_config_is_not_importable_as_a_model_feature():
             f"{module} references the regimes module ({found}). Shock windows "
             "are evaluation labels and must not reach a model."
         )
+
+
+def test_the_docs_index_names_every_document():
+    """`docs/README.md` must list every file in `docs/`, with no dead entries.
+
+    This project keeps superseded reasoning rather than deleting it, which only
+    works if a reader can tell a live decision from a retired one. The index is
+    what carries that distinction, so a document missing from it is a document
+    read as current by default -- the same failure as a builder missing from
+    `ui.BUILDERS` or a name missing from `NEEDS_CALENDAR`, and just as quiet.
+
+    Checked both ways. An unindexed file is an undated verdict; an indexed file
+    that no longer exists is a broken promise in the one page that exists to
+    say what is here.
+    """
+    index = ROOT / "docs" / "README.md"
+    text = index.read_text(encoding="utf-8")
+
+    linked = {
+        m.group(1)
+        for m in re.finditer(r"\[[^\]]*\]\(([^)#][^)]*?)\)", text)
+        if not m.group(1).startswith(("http", "mailto", "../"))
+    }
+    on_disk = {p.name for p in (ROOT / "docs").glob("*.md")} - {index.name}
+
+    missing = sorted(on_disk - linked)
+    assert not missing, (
+        f"docs/ holds {missing}, which docs/README.md does not index. Add each "
+        "with a status, or a reader takes it as current by default."
+    )
+
+    dangling = sorted(link for link in linked if not (index.parent / link).exists())
+    assert not dangling, f"docs/README.md links to missing files: {dangling}."
+
+
+def test_every_indexed_document_carries_a_status():
+    """The status column is the point of the index; a blank one is worse than none.
+
+    An entry with a link and no status tells a reader the file exists and
+    nothing about whether to believe it, which is the question the index was
+    written to answer.
+    """
+    text = (ROOT / "docs" / "README.md").read_text(encoding="utf-8")
+
+    rows = [
+        line for line in text.splitlines()
+        if line.startswith("| [") and "](" in line
+    ]
+    assert rows, "docs/README.md has no table rows; the index is not a table."
+
+    for row in rows:
+        cells = [cell.strip() for cell in row.strip("|").split("|")]
+        assert len(cells) >= 3, f"Index row is malformed: {row!r}"
+        assert cells[1], f"Index row has an empty status column: {row!r}"

@@ -37,7 +37,7 @@ work was done. The **Now** column is the current state.
 | T5 | Calendar layer computed from an ephemeris, never tabulated | **done** — skyfield declared, festival dates match published almanacs | unchanged; what it contains is now stated in the README |
 | T6 | Block bootstrap over origins, `results/bootstrap.csv` | **built** — resamples origins in blocks; unrun until T1 | run — 2,000 resamples |
 | T7 | `switching` model, leak-free break detector | **built** — detector + leak guards tested; unscored until T1 | scored; it does not rescue the shock regime, and that is reported |
-| T8 | Figures regenerating from `make all` | **built** — five figures, all drawn from artefacts | six figures |
+| T8 | Figures regenerating from `make all` | **built** — five figures, all drawn from artefacts | seven figures, including the headline slope chart the README leads with |
 | T9 | A page a non-technical reader can question directly | *not in the 2026-08-18 brief; requested by the owner on 2026-08-22, and constraint 5 amended for it* | built — `results/yatra.html`, generated from artefacts, refuses rather than guesses |
 
 ## 3. Hard constraints

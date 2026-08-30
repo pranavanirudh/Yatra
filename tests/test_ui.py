@@ -350,3 +350,78 @@ def test_ui_is_a_stage_and_runs_after_the_artefacts_it_reads():
             f"`ui` runs before `{produced_first}`, so it would render the "
             "previous run's artefacts"
         )
+
+
+def test_every_drawn_figure_has_a_caption_on_the_page():
+    """A figure the pipeline draws and the console ignores is a silent omission.
+
+    `_figures` skips any file that is not in `FIGURE_CAPTIONS`, and skips any
+    caption whose file is absent, without either case raising. That is the right
+    behaviour at render time -- a page that half-exists is worse than one that
+    quietly shows less -- but it means the two lists can drift apart with
+    nothing failing, which is the scar of CLAUDE.md §3.3, §3.7 and §3.8 in its
+    figure-shaped form. `inversion_hero.png` was exactly that for one commit:
+    drawn by `make figures`, absent from the console, and no test the poorer.
+
+    Checked against `figures.build_all`, which is the declaration of what the
+    pipeline draws, rather than against `results/figures/` on disk -- a stale
+    PNG left behind by a deleted figure must not be able to satisfy this.
+    """
+    from yatra import figures
+
+    source = inspect.getsource(figures.build_all)
+    drawn = set(re.findall(r'directory / "([^"]+\.png)"', source))
+    assert drawn, "Could not read the figure list out of figures.build_all."
+
+    captioned = {name for name, _, _ in ui.FIGURE_CAPTIONS}
+
+    uncaptioned = sorted(drawn - captioned)
+    assert not uncaptioned, (
+        f"{uncaptioned} are drawn by make figures but carry no caption in "
+        "ui.FIGURE_CAPTIONS, so the console silently omits them. Add a caption "
+        "saying what each one is evidence of, or stop drawing it."
+    )
+
+
+def test_no_caption_names_a_figure_nothing_draws():
+    """The other direction: a caption for a figure that no longer exists.
+
+    `_figures` skips it silently, so the page loses a panel and the console
+    still renders cleanly.
+
+    `bootstrap_intervals.png` is exempted rather than matched. It is named in
+    `build_all` like the others, so it satisfies this check today, but it is
+    the one figure drawn conditionally -- only when a bootstrap frame is passed
+    -- and a refactor that moved it behind a helper would fail this test for a
+    figure the console is right to caption. The exemption records that, so the
+    failure would have to be a real one.
+    """
+    from yatra import figures
+
+    source = inspect.getsource(figures.build_all)
+    drawn = set(re.findall(r'directory / "([^"]+\.png)"', source))
+    conditional = {"bootstrap_intervals.png"}
+
+    captioned = {name for name, _, _ in ui.FIGURE_CAPTIONS}
+    orphans = sorted(captioned - drawn - conditional)
+    assert not orphans, (
+        f"ui.FIGURE_CAPTIONS names {orphans}, which figures.build_all does not "
+        "draw. The console would silently render without them."
+    )
+
+
+def test_figure_captions_are_unique_and_say_something():
+    """Each entry must name a distinct file and carry a real caption.
+
+    A duplicated filename would render the same panel twice; an empty caption
+    would make the figure decoration, which is the thing FIGURE_CAPTIONS exists
+    to prevent.
+    """
+    names = [name for name, _, _ in ui.FIGURE_CAPTIONS]
+    assert len(names) == len(set(names)), f"Duplicate figure entries: {names}"
+
+    for name, title, caption in ui.FIGURE_CAPTIONS:
+        assert title.strip(), f"{name} has no title."
+        assert len(caption.strip()) > 40, (
+            f"{name} has a caption too short to say what it is evidence of."
+        )

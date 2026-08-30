@@ -24,6 +24,18 @@ from .errors import ConfigError
 BEGIN = "<!-- BEGIN GENERATED -->"
 END = "<!-- END GENERATED -->"
 
+#: The README's first screen is generated too, and for the same reason as the
+#: results section: it carries the leaderboard's two headline ranks, and a
+#: number a visitor reads before anything else is the last one that should be
+#: typed by hand. Deliberately distinct strings from BEGIN/END -- neither is a
+#: substring of the other, so partitioning on one cannot find the other.
+LEAD_BEGIN = "<!-- BEGIN LEAD -->"
+LEAD_END = "<!-- END LEAD -->"
+
+#: The one figure a visitor is assumed to look at. Named here rather than
+#: inline so the lead and the figure stage cannot drift apart silently.
+HERO_FIGURE = "results/figures/inversion_hero.png"
+
 #: Below this many non-COVID shock windows, any COVID-versus-other contrast in
 #: the per-window section is qualified in the generated text. The COVID windows
 #: are subdivisions of one event, so every "these disagree" correlation is the
@@ -164,6 +176,164 @@ def _regime_counts(frame: pd.DataFrame) -> list[str]:
     return lines
 
 
+def _rank_table(table: pd.DataFrame) -> list[str]:
+    """The clean-versus-shock table, rendered once.
+
+    Both the README's first screen and its results section show this table. One
+    renderer, so a later edit to either cannot leave a visitor reading different
+    ranks from the ones the results section reports.
+    """
+    clean, shock = regimes.CLEAN, regimes.SHOCK
+    lines = [
+        "| Model | Clean MASE | Rank | Shock MASE | Rank | Rank change |",
+        "|---|---:|---:|---:|---:|---:|",
+    ]
+    for model in table.sort_values(clean).index:
+        row = table.loc[model]
+        delta = int(row[f"{shock}_rank"]) - int(row[f"{clean}_rank"])
+        lines.append(
+            f"| `{model}` | {_fmt(row[clean])} | {int(row[f'{clean}_rank'])} "
+            f"| {_fmt(row[shock])} | {int(row[f'{shock}_rank'])} | {delta:+d} |"
+        )
+    return lines
+
+
+def _selection_cost(
+    table: pd.DataFrame,
+    pooled: pd.Series,
+    best_clean: str,
+    best_shock: str,
+    n_models: int,
+) -> list[str]:
+    """The closing paragraph of the lead: what pooling actually costs a chooser.
+
+    The claim here is about a *pooled* leaderboard -- one averaged over every
+    month, which is what a reader who had never split by regime would build.
+    Its winner is read from ``pooled``, never inferred from the clean column.
+    The two agree on the committed record because ordinary months outnumber
+    disrupted ones by more than ten to one, but that agreement is a property of
+    this sample and not of the method: a later run with deeper shock coverage
+    could separate them, and the paragraph would go on asserting the pooled
+    leaderboard recommended a model it no longer recommended.
+
+    Three cases, because the paragraph claims something different in each and
+    only one of them is the headline result. Collapsing them into the single
+    sentence that happens to read correctly under the current numbers is the
+    quiet wrong answer of §5 of the brief, in the one paragraph a visitor is
+    most likely to quote without checking.
+    """
+    shock = regimes.SHOCK
+    pooled_winner = pooled.idxmin()
+    pooled_shock_rank = int(table.loc[pooled_winner, f"{shock}_rank"])
+
+    if pooled_winner == best_shock:
+        # Pooling landed on the shock winner. The inversion above is still in
+        # the table, but this particular cost does not apply, and asserting it
+        # anyway would overclaim in precisely the direction the project wants
+        # the answer to fall.
+        return [
+            f"**What this costs you at selection time.** On this record a "
+            f"leaderboard averaged over all months happens to recommend "
+            f"`{pooled_winner}`, which is also the model that wins during "
+            f"shocks — so pooling does not misdirect the choice here, even "
+            f"though the two rankings disagree. What pooling still costs is "
+            f"the knowledge of which case you are in: one averaged number "
+            f"cannot tell you that the orders differ at all.",
+        ]
+
+    if pooled_winner != best_clean:
+        # Neither regime's winner: a compromise model. Said plainly rather
+        # than smoothed into the headline sentence.
+        return [
+            f"**What this costs you at selection time.** A leaderboard averaged "
+            f"over all months recommends `{pooled_winner}`, which wins neither "
+            f"regime: it ranks {pooled_shock_rank} of {n_models} on disrupted "
+            f"months, and `{best_clean}` beats it on ordinary ones. Pooling "
+            f"returns a compromise that is not the best answer to either "
+            f"question a chooser is actually asking.",
+        ]
+
+    return [
+        f"**What this costs you at selection time.** A leaderboard averaged "
+        f"over all months recommends `{pooled_winner}`, which ranks "
+        f"{pooled_shock_rank} of {n_models} in exactly the months a forecast "
+        f"would have mattered — and it discards `{best_shock}`, which is the "
+        f"one that wins there. Averaging over regimes does not lose precision "
+        f"so much as invert the recommendation.",
+    ]
+
+
+def _lead(table: pd.DataFrame, pooled: pd.Series) -> list[str]:
+    """The README's first screen: the finding, the table, the figure, the point.
+
+    Generated rather than typed for the same reason as everything between BEGIN
+    and END. This is the block most likely to be quoted and least likely to be
+    re-checked, so it is the worst place in the repository for a hand-copied
+    rank that a re-run has since moved.
+
+    ``pooled`` is the mean metric per model over *every* forecast, ignoring the
+    regime split. It is passed in rather than assumed because the closing
+    paragraph makes a claim about what a pooled leaderboard would recommend,
+    and that model is not the clean winner by construction -- clean months
+    merely outnumber disrupted ones heavily enough that it usually is. Deriving
+    it from the clean column would be a sentence that is true of the committed
+    record and not true by construction, stated as though it were checked:
+    the same objection §3.9 raises against an unconditional block-structure
+    sentence, in the one paragraph a visitor is most likely to quote.
+    """
+    clean, shock = regimes.CLEAN, regimes.SHOCK
+    if clean not in table.columns or shock not in table.columns:
+        raise ConfigError(
+            "The lead states the clean-versus-shock inversion and cannot be "
+            f"written without both regimes; the table has {list(table.columns)}. "
+            "It does not fall back to a single-regime summary: the first thing "
+            "a visitor reads must not quietly become a different claim."
+        )
+
+    best_clean = table[clean].idxmin()
+    best_shock = table[shock].idxmin()
+    n_models = len(table)
+    shock_rank_of_clean_winner = int(table.loc[best_clean, f"{shock}_rank"])
+    clean_rank_of_shock_winner = int(table.loc[best_shock, f"{clean}_rank"])
+
+    return (
+        [
+            "## The finding",
+            "",
+            f"Rank {n_models} forecasting models by average error on ordinary "
+            f"months, then rank them again on disrupted months, and the two "
+            f"orders disagree: **`{best_clean}` wins on ordinary months but "
+            f"ranks {shock_rank_of_clean_winner} of {n_models} during shocks, "
+            f"while `{best_shock}` wins during shocks but ranks "
+            f"{clean_rank_of_shock_winner} of {n_models} on ordinary months.**",
+            "",
+        ]
+        + _rank_table(table)
+        + [
+            "",
+            f"All {n_models} models, ranked in each regime and joined. The "
+            f"two picked out are the winner of each regime; the rest are "
+            f"drawn in grey rather than dropped. The lines cross.",
+            "",
+            f"![Slope chart: each model's rank on ordinary months joined to "
+            f"its rank on disrupted months. The line for `{best_clean}` falls "
+            f"from first to {shock_rank_of_clean_winner} and the line for "
+            f"`{best_shock}` rises from {clean_rank_of_shock_winner} to first, "
+            f"crossing in the middle.]({HERO_FIGURE})",
+            "",
+        ]
+        + _selection_cost(table, pooled, best_clean, best_shock, n_models)
+        + [
+            "",
+            "Scored on one shared origin set against one shared MASE "
+            "denominator, so the two columns are comparable. The evidence "
+            "behind each claim, the bootstrap intervals and the boundary "
+            "sensitivity are in [Results](#results).",
+            "",
+        ]
+    )
+
+
 def _leaderboard(frame: pd.DataFrame) -> tuple[list[str], pd.DataFrame]:
     table = backtest.per_regime_table(frame, "mase")
     clean, shock = regimes.CLEAN, regimes.SHOCK
@@ -178,17 +348,7 @@ def _leaderboard(frame: pd.DataFrame) -> tuple[list[str], pd.DataFrame]:
     ]
 
     if have_both:
-        lines += [
-            "| Model | Clean MASE | Rank | Shock MASE | Rank | Rank change |",
-            "|---|---:|---:|---:|---:|---:|",
-        ]
-        for model in table.sort_values(clean).index:
-            row = table.loc[model]
-            delta = int(row[f"{shock}_rank"]) - int(row[f"{clean}_rank"])
-            lines.append(
-                f"| `{model}` | {_fmt(row[clean])} | {int(row[f'{clean}_rank'])} "
-                f"| {_fmt(row[shock])} | {int(row[f'{shock}_rank'])} | {delta:+d} |"
-            )
+        lines += _rank_table(table)
     else:
         present = [c for c in table.columns if not c.endswith(("_rank", "_n"))]
         lines += ["| Model | " + " | ".join(present) + " |", "|---" * (len(present) + 1) + "|"]
@@ -1271,22 +1431,50 @@ def render(
     return "\n".join(blocks).rstrip() + "\n"
 
 
+def render_lead(metrics_path: str | Path = "results/metrics.csv") -> str:
+    """The README's first screen, from the same artefact as everything else."""
+    frame = backtest.read(metrics_path)
+    if frame.empty:
+        raise ConfigError(f"{metrics_path} has no rows.")
+    _, table = _leaderboard(frame)
+    pooled = frame.groupby("model")["mase"].mean()
+    return "\n".join(_lead(table, pooled)).rstrip() + "\n"
+
+
+def _replace_block(text: str, begin: str, end: str, body: str, path: Path) -> str:
+    if begin not in text or end not in text:
+        raise ConfigError(
+            f"{path} is missing the {begin} / {end} markers. The generator will "
+            "not guess where that section belongs."
+        )
+    if text.index(begin) > text.index(end):
+        raise ConfigError(f"{path} has {end} before {begin}.")
+    head, _, rest = text.partition(begin)
+    _, _, tail = rest.partition(end)
+    return f"{head}{begin}\n\n{body}\n{end}{tail}"
+
+
 def update_readme(
     readme_path: str | Path = "README.md",
     metrics_path: str | Path = "results/metrics.csv",
     shocks_config: str | Path = "experiments/configs/shocks.yaml",
 ) -> Path:
+    """Rewrite both generated regions: the first screen, and the results section.
+
+    Two regions rather than one because the finding belongs above the fold and
+    the method belongs below it, and neither may be hand-typed. Both are
+    rewritten wholesale on every run; a missing marker pair raises rather than
+    being created, because the generator does not guess at document structure.
+    """
     readme_path = Path(readme_path)
     text = readme_path.read_text(encoding="utf-8")
 
-    if BEGIN not in text or END not in text:
-        raise ConfigError(
-            f"{readme_path} is missing the {BEGIN} / {END} markers. The generator "
-            "will not guess where the results section belongs."
-        )
-    head, _, rest = text.partition(BEGIN)
-    _, _, tail = rest.partition(END)
+    text = _replace_block(
+        text, LEAD_BEGIN, LEAD_END, render_lead(metrics_path), readme_path
+    )
+    text = _replace_block(
+        text, BEGIN, END, render(metrics_path, shocks_config), readme_path
+    )
 
-    body = render(metrics_path, shocks_config)
-    readme_path.write_text(f"{head}{BEGIN}\n\n{body}\n{END}{tail}", encoding="utf-8")
+    readme_path.write_text(text, encoding="utf-8")
     return readme_path

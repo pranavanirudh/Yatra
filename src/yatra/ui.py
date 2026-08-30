@@ -180,6 +180,10 @@ FIGURE_CAPTIONS: tuple[tuple[str, str, str], ...] = (
     ("regime_ranking.png", "The same models, scored twice",
      "Mean error on ordinary months against mean error on disrupted ones. If "
      "the ranking were stable the two columns would agree. They do not."),
+    ("inversion_hero.png", "The finding, in one picture",
+     "The same slope chart as below, with the winner of each regime picked "
+     "out and the other seven drawn in grey. Nothing is dropped; the two "
+     "lines that carry the argument are simply made unmissable."),
     ("rank_shift.png", "How far each model moves between the two",
      "One line per model, from its clean-month rank to its shock-month rank. "
      "The crossing lines are the finding."),

@@ -31,6 +31,13 @@ SHOCK_COLOUR = "#c1483a"
 SHOCK_BAND = "#c1483a"
 GRID = "#d9d9d9"
 
+# The hero figure greys every model that is not a regime winner. Nothing is
+# dropped -- the argument is carried by two lines and the other seven are
+# context, so they are drawn quietly rather than left out.
+MUTED = "#c2c2c2"
+MUTED_TEXT = "#8a8a8a"
+SUBTITLE_TEXT = "#555555"
+
 DPI = 150
 
 
@@ -188,6 +195,116 @@ def rank_shift(table: pd.DataFrame, path: Path) -> Path:
     ax.set_axisbelow(True)
     for side in ("top", "right", "left"):
         ax.spines[side].set_visible(False)
+    return _save(fig, path)
+
+
+def inversion_hero(table: pd.DataFrame, path: Path) -> Path:
+    """The one figure a visitor looks at, built to be read in three seconds.
+
+    ``rank_shift`` draws the same slope chart for someone who already knows the
+    argument: nine equally-weighted lines, and the reader works out which ones
+    matter. This one makes that judgement for them. Every model is still drawn
+    -- dropping the seven that carry no argument would be a prettier figure and
+    a selective one, and this project's whole objection is to presentation that
+    quietly narrows what it shows. They are greyed instead, so nothing is hidden
+    and two lines are unmissable.
+
+    The two picked out are the winner of each regime: the model that ranks first
+    on ordinary months, and the model that ranks first on disrupted ones. They
+    are picked from the table, never named here.
+    """
+    left, right = f"{regimes.CLEAN}_rank", f"{regimes.SHOCK}_rank"
+    clean, shock = regimes.CLEAN, regimes.SHOCK
+    missing = [c for c in (left, right) if c not in table.columns]
+    if missing:
+        raise ConfigError(
+            f"Per-regime table lacks {missing}; there is no inversion to draw "
+            "with one regime. Half a comparison is not the comparison."
+        )
+
+    best_clean = table[clean].idxmin()
+    best_shock = table[shock].idxmin()
+    n_models = len(table)
+
+    fig, ax = plt.subplots(figsize=(8.0, 5.2))
+
+    # The recessive seven first, so the highlighted pair sits on top of them.
+    for name, row in table.iterrows():
+        if name in (best_clean, best_shock):
+            continue
+        ax.plot(
+            [0, 1], [row[left], row[right]],
+            marker="o", markersize=4, linewidth=1.3,
+            color=MUTED, alpha=0.85, zorder=2,
+        )
+        ax.annotate(
+            f"{int(row[left])}  {name}", xy=(-0.035, row[left]),
+            ha="right", va="center", fontsize=10, color=MUTED_TEXT, zorder=2,
+        )
+        ax.annotate(
+            f"{name}  {int(row[right])}", xy=(1.035, row[right]),
+            ha="left", va="center", fontsize=10, color=MUTED_TEXT, zorder=2,
+        )
+
+    # The two that carry the argument. Regime colours, so this figure reads the
+    # same way as every other one in results/figures.
+    for name, colour in ((best_clean, CLEAN_COLOUR), (best_shock, SHOCK_COLOUR)):
+        row = table.loc[name]
+        ax.plot(
+            [0, 1], [row[left], row[right]],
+            marker="o", markersize=9, linewidth=3.4,
+            color=colour, alpha=1.0, zorder=4,
+        )
+        ax.annotate(
+            f"{int(row[left])}  {name}", xy=(-0.035, row[left]),
+            ha="right", va="center", fontsize=13, fontweight="bold",
+            color=colour, zorder=5,
+        )
+        ax.annotate(
+            f"{name}  {int(row[right])}", xy=(1.035, row[right]),
+            ha="left", va="center", fontsize=13, fontweight="bold",
+            color=colour, zorder=5,
+        )
+
+    ax.set_xlim(-0.72, 1.72)
+    ax.set_ylim(n_models + 0.7, 0.3)
+    ax.set_xticks([0, 1])
+    ax.set_xticklabels(
+        ["rank on ordinary months", "rank on disrupted months"],
+        fontsize=12, fontweight="bold",
+    )
+    ax.tick_params(axis="x", length=0, pad=10)
+    ax.set_yticks([])
+
+    for side in ("top", "right", "left", "bottom"):
+        ax.spines[side].set_visible(False)
+    ax.grid(False)
+
+    # Two faint uprights, so the eye reads the chart as two columns rather than
+    # as lines floating in space.
+    for x in (0, 1):
+        ax.axvline(x, color=GRID, linewidth=1.0, zorder=1)
+
+    # Stated conditionally. If a re-run ever produced one model winning both
+    # regimes, an unconditional "the ranking inverts" would be a caption that
+    # had stopped being true without anything failing -- which is the exact
+    # class of quiet wrong answer this project is built against.
+    if best_clean == best_shock:
+        headline = "The same model wins in both regimes"
+        subtitle = f"{best_clean} ranks first on ordinary and on disrupted months."
+    else:
+        headline = "The ranking inverts"
+        subtitle = (
+            f"{best_clean} falls from 1 to {int(table.loc[best_clean, right])} "
+            f"of {n_models}.   "
+            f"{best_shock} rises from {int(table.loc[best_shock, left])} to 1."
+        )
+
+    ax.set_title(headline, fontsize=17, fontweight="bold", pad=26, loc="center")
+    ax.annotate(
+        subtitle, xy=(0.5, 1.015), xycoords="axes fraction",
+        ha="center", va="bottom", fontsize=11.5, color=SUBTITLE_TEXT,
+    )
     return _save(fig, path)
 
 
@@ -384,6 +501,7 @@ def build_all(
         forecast_vs_actual(frame, windows, directory / "forecast_vs_actual_h1.png", horizon=1),
         regime_ranking(table, directory / "regime_ranking.png"),
         rank_shift(table, directory / "rank_shift.png"),
+        inversion_hero(table, directory / "inversion_hero.png"),
         horizon_profile(frame, directory / "horizon_profile.png"),
         shock_type_agreement(frame, directory / "shock_type_agreement.png"),
     ]
