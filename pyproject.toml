@@ -46,7 +46,10 @@ dependencies = [
 yatra = "yatra.cli:main"
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0,<9"]
+# types-PyYAML is the stub package for PyYAML, so yaml is checked rather than
+# waved through. It is listed here for the same reason mypy is: a checker that
+# only passes on the machine that has the stubs installed is not a check.
+dev = ["pytest>=8.0,<9", "mypy>=1.8,<2", "types-PyYAML>=6.0,<7"]
 
 # The ephemeris backend is an extra rather than a hard dependency because
 # pyswisseph is source-only on Windows and needs an MSVC toolchain. See
@@ -55,6 +58,43 @@ swisseph = ["pyswisseph>=2.10,<3"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/yatra"]
+
+[tool.mypy]
+# `mypy` with no arguments checks the package, so the command in CI, the
+# command in a hook and the command somebody types are the same command.
+files = ["src/yatra"]
+
+# No `python_version` pin, though the project floor is 3.11 and pinning it here
+# is what you would want. NumPy 2.x ships stubs written with `type` statements,
+# which mypy refuses to parse under a declared 3.11 and which stop the run
+# before any of this project's code is read. The check therefore runs at the
+# version of the interpreter it is invoked with. Do not re-add the pin without
+# checking that against the installed numpy.
+
+# The scientific stack ships no type information: no stubs in the package, no
+# py.typed marker. Naming those libraries here says "this import cannot be
+# resolved to types", which is true of them and of nothing else -- it is not a
+# switch that hides errors in this project's own code, and there is no
+# module-level or file-level ignore anywhere in src/yatra.
+#
+# The cost is real and worth stating: pandas, numpy-adjacent and statsmodels
+# calls are checked as `Any`, so a typo in a keyword argument to
+# `ExponentialSmoothing` is not caught here. `pandas-stubs` would close most of
+# that gap and is a separate piece of work -- it types a codebase this
+# pandas-heavy strictly enough that adopting it is a change to the code, not to
+# the configuration.
+[[tool.mypy.overrides]]
+module = [
+    "pandas",
+    "scipy.*",
+    "skyfield.*",
+    "statsmodels.*",
+    "matplotlib.*",
+    # The optional Swiss Ephemeris backend. Not installed on this machine by
+    # design -- see docs/ephemeris.md -- so it cannot be resolved at all here.
+    "swisseph",
+]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -36,6 +36,7 @@ from __future__ import annotations
 import datetime as dt
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Literal, overload
 
 import numpy as np
 import pandas as pd
@@ -215,6 +216,19 @@ def load_config(path: str | Path = "experiments/configs/ingest.yaml") -> IngestC
         annual=_table(raw, "annual", "year", required=True),
         source=_source(raw),
     )
+
+
+# `required=True` does not return None: it raises. The overloads say so, which
+# is what lets `load_config` hand the result straight to `IngestConfig.monthly`
+# without a cast asserting something the checker cannot see.
+@overload
+def _table(raw: dict, section: str, key: str,
+           required: Literal[True]) -> TableSpec: ...
+
+
+@overload
+def _table(raw: dict, section: str, key: str,
+           required: bool) -> TableSpec | None: ...
 
 
 def _table(raw: dict, section: str, key: str, required: bool) -> TableSpec | None:

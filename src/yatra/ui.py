@@ -2136,12 +2136,12 @@ def _find_year(query: str) -> str | None:
 def _find_month_key(payload: dict, query: str) -> str | None:
     iso = _ISO_MONTH.search(query)
     if iso:
-        number = int(iso.group(2))
-        if 1 <= number <= 12:
-            return f"{iso.group(1)}-{number:02d}"
+        written = int(iso.group(2))
+        if 1 <= written <= 12:
+            return f"{iso.group(1)}-{written:02d}"
 
     year = _find_year(query)
-    number = None
+    number: int | None = None
     for word, month, needs_year in payload["monthWords"]:
         if needs_year and not year:
             continue

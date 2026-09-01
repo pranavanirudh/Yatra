@@ -83,6 +83,14 @@ class Backend(ABC):
 
     name: str
 
+    #: The site sunrise and sunset are computed for. Declared here because it
+    #: is part of the surface in fact -- every backend takes one, `risings` and
+    #: `settings` are meaningless without it, and `cli.py` prints it so an
+    #: operator can see which site a calendar was computed at. It was reachable
+    #: on both implementations and absent from the contract, which is a
+    #: difference nothing would have caught until a third backend omitted it.
+    location: Location
+
     @abstractmethod
     def sun_longitude(self, jd_ut: np.ndarray | float) -> np.ndarray:
         """Apparent geocentric ecliptic longitude of the Sun, degrees."""
