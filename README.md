@@ -151,6 +151,30 @@ observation set must never change underneath a pipeline run.
 observation files, and it refuses to proceed if a declared shock window has no
 citation.
 
+### Checks, and what they are worth
+
+`make test` runs the suite, calendar tests first — those are the ones whose
+failure invalidates every ablation result, so there is nothing to learn from
+the rest until they pass.
+
+`mypy` is in the dev extras and configured in `pyproject.toml`; run with no
+arguments it checks `src/yatra` and reports no issues, and there is no
+`# type: ignore` anywhere in the source.
+
+**That is worth less than it sounds, and this is the wrong project to let it
+pass for more.** The scientific stack ships no type information — pandas,
+statsmodels, skyfield, scipy and matplotlib carry neither stubs nor a
+`py.typed` marker — so every call into those libraries is checked as `Any`. A
+misspelled keyword argument to `ExponentialSmoothing`, or a column name that
+does not exist, gets through the type checker exactly as it did before. What is
+actually checked is this project's own signatures and its own control flow,
+which is worth having and is not the same claim.
+
+`pandas-stubs` would close most of that gap. On a codebase this pandas-heavy,
+adopting it is a change to the code rather than to the configuration, and it
+has not been made. The tests, not the type checker, are what stand behind the
+numbers here.
+
 ### Getting your data in
 
 This is only needed to bring in a **different** dataset — a longer series, a
