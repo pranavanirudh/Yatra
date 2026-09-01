@@ -47,38 +47,17 @@ def _check_interpreter() -> None:
 
 
 def main(argv: list[str]) -> int:
+    """Interpreter check, then hand the targets to the one dispatcher.
+
+    The target parsing and the stage loop live in `yatra.cli.main`, which the
+    installed `yatra` console script also enters. This file owns exactly one
+    thing the console script must not have: the re-exec into the project venv.
+    """
     _check_interpreter()
 
     from yatra import cli
 
-    # Everything up to the first flag is a target; the rest belongs to the
-    # stage, which reads sys.argv itself. Without this split, `make.py ingest
-    # --inspect file.csv` reports "--inspect" as an unknown target.
-    words = argv[1:]
-    cut = next((i for i, w in enumerate(words) if w.startswith("-")), len(words))
-    targets = words[:cut] or ["all"]
-    if targets == ["all"]:
-        targets = cli.ALL_ORDER
-
-    unknown = [t for t in targets if t not in cli.STAGES]
-    if unknown:
-        print(f"unknown target(s): {unknown}", file=sys.stderr)
-        print(f"available: {', '.join(cli.STAGES)}, all", file=sys.stderr)
-        return 2
-
-    for target in targets:
-        try:
-            cli.STAGES[target]()
-        except NotImplementedError as exc:
-            # A stage that does not exist yet stops the run. `all` does not
-            # continue past it and report success for the stages that did work.
-            print(f"\n[make.py] STOP at '{target}': {exc}", file=sys.stderr)
-            return 3
-        except Exception as exc:
-            print(f"\n[make.py] FAILED at '{target}': "
-                  f"{type(exc).__name__}: {exc}", file=sys.stderr)
-            return 1
-    return 0
+    return cli.main(argv[1:])
 
 
 if __name__ == "__main__":

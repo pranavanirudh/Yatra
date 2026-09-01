@@ -461,3 +461,55 @@ ALL_ORDER = [
     "ui",
     "test",
 ]
+
+
+# --------------------------------------------------------------------------
+# the dispatcher
+# --------------------------------------------------------------------------
+#
+# One implementation, three ways in: `make <target>` delegates to `make.py`,
+# `make.py` delegates to here, and the installed `yatra` console script enters
+# here directly. The same rule the Makefile is written under (see its header):
+# a second copy of this loop would be a second definition of what `all` means,
+# and the entry point nobody runs is the one that rots.
+#
+# What `make.py` keeps for itself is the interpreter check -- re-executing
+# inside the project venv, which an installed console script must not do
+# because it is already running in the environment it was installed into.
+
+def main(argv: list[str] | None = None) -> int:
+    """Run one or more stages, in the order given. Returns a process exit code.
+
+    Bare, or ``all``, runs :data:`ALL_ORDER`. ``ingest`` is reachable only by
+    name: it writes ``data/raw/``, and the observation set must not change
+    underneath a run that is scoring against it.
+    """
+    words = list(sys.argv[1:] if argv is None else argv)
+
+    # Everything up to the first flag is a target; the rest belongs to the
+    # stage, which reads sys.argv itself. Without this split, `yatra ingest
+    # --inspect file.csv` reports "--inspect" as an unknown target.
+    cut = next((i for i, word in enumerate(words) if word.startswith("-")), len(words))
+    targets = words[:cut] or ["all"]
+    if targets == ["all"]:
+        targets = list(ALL_ORDER)
+
+    unknown = [target for target in targets if target not in STAGES]
+    if unknown:
+        print(f"unknown target(s): {unknown}", file=sys.stderr)
+        print(f"available: {', '.join(STAGES)}, all", file=sys.stderr)
+        return 2
+
+    for target in targets:
+        try:
+            STAGES[target]()
+        except NotImplementedError as exc:
+            # A stage that does not exist yet stops the run. `all` does not
+            # continue past it and report success for the stages that did work.
+            print(f"\n[yatra] STOP at '{target}': {exc}", file=sys.stderr)
+            return 3
+        except Exception as exc:
+            print(f"\n[yatra] FAILED at '{target}': "
+                  f"{type(exc).__name__}: {exc}", file=sys.stderr)
+            return 1
+    return 0

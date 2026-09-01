@@ -37,6 +37,14 @@ dependencies = [
     "skyfield>=1.45,<2",
 ]
 
+# The pipeline, after `pip install .`, without the repository checked out or
+# `make` installed: `yatra validate`, `yatra all`, `yatra ingest --inspect f.csv`.
+# It enters the same dispatcher `make.py` enters -- one implementation of what
+# a target is and what `all` means, because two would drift and the entry point
+# nobody runs is the one that rots.
+[project.scripts]
+yatra = "yatra.cli:main"
+
 [project.optional-dependencies]
 dev = ["pytest>=8.0,<9"]
 
