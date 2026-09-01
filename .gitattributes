@@ -1,0 +1,14 @@
+# What in this repository is written, and what is produced.
+#
+# `results/yatra.html` is committed on purpose -- a reader should be able to
+# open the answer console without running the pipeline first -- but nobody
+# wrote it. It is output: `make ui` regenerates it in full from `src/yatra/ui.py`
+# and the artefacts in `results/`, and an edit made to it by hand would be gone
+# on the next run. Marking it generated tells GitHub two true things: leave it
+# out of the language statistics, which are meant to describe the source, and
+# fold it in diffs, where two megabytes of regenerated markup is noise around
+# the change that actually caused it.
+#
+# The stylesheet and the script the page carries are Python string constants in
+# `ui.py` and are counted where they live, which is also where they are edited.
+results/yatra.html linguist-generated=true

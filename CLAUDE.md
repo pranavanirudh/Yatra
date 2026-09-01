@@ -258,6 +258,15 @@ case, diacritics, an impossible ISO month, and "may" as a modal verb. If node
 is absent only that conformance check skips; the routing is still tested,
 which it was not while it lived in a string constant.
 
+**The committed page is marked generated.** `.gitattributes` carries
+`results/yatra.html linguist-generated=true`. The page is output, not source:
+`make ui` rewrites it whole from `ui.py` and the artefacts, and a hand edit to
+it is gone on the next run. The attribute tells GitHub two true things — keep
+it out of the language statistics, which describe what somebody wrote, and fold
+it in diffs, where two megabytes of regenerated markup is noise around the
+change that caused it. It stays committed either way: a reader should be able
+to open the console without running the pipeline first.
+
 ### 3.9 The per-window shock section states a pattern, never a cell
 
 `report._by_shock_type()` unpools the shock leaderboard into the individual
