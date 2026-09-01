@@ -287,3 +287,23 @@ def test_make_py_gets_the_same_flag_handling(make_py, recorded, capsys):
     assert make_py.main(["make.py", "--help"]) == 0
     assert not recorded, "`python make.py --help` ran the pipeline"
     assert cli.USAGE in capsys.readouterr().out
+
+
+def test_the_declared_version_and_the_reported_version_are_the_same(pyproject):
+    """`pyproject` packages one number and `__init__` reports another.
+
+    They drifted, and the drift surfaced as `yatra --version` printing a
+    version the repository's own tags contradicted -- the reported version was
+    behind the released one, so the first question anybody asks a CLI got an
+    answer that disagreed with `git tag`. Nothing coupled the two, so nothing
+    failed. Now something does.
+    """
+    from yatra import __version__
+
+    declared = pyproject["project"]["version"]
+    assert declared == __version__, (
+        f"pyproject declares {declared} and yatra.__version__ reports "
+        f"{__version__}. `yatra --version` prints the second, packaging metadata "
+        "carries the first, and a reader has no way to tell which is the "
+        "release they are holding."
+    )

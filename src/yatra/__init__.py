@@ -10,7 +10,7 @@ can invent an observation. See docs/claude_code_brief.md.
 
 from __future__ import annotations
 
-__version__ = "0.1.0"
+__version__ = "1.1.0"
 
 from .errors import (
     CalendarRoutingError,
