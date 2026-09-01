@@ -21,6 +21,13 @@ literal. Every figure in every sentence is interpolated from an artefact, and
 every answer carries the artefact and row it came from, rendered on the card
 where the reader can see it rather than in a footnote.
 
+**Where the answers are written.** Here, in Python, at build time -- all of
+them, including one card for every month, year and festival in the record. The
+page carries the finished deck and looks a card up; the script in it routes and
+renders and does not compose. That is the same argument one step further out: a
+sentence assembled in a browser is a sentence no test in this repository can
+reach, and the formatting rules it would need are already defined above.
+
 **Why it refuses rather than guesses.** The matcher is a keyword scorer over a
 declared bank of answers plus a small set of lookup handlers for months, years
 and festivals. When nothing scores above the floor it says so and lists what it
@@ -34,6 +41,7 @@ from __future__ import annotations
 import base64
 import datetime as dt
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -109,9 +117,6 @@ class Source:
     artefact: str
     detail: str
 
-    def as_dict(self) -> dict[str, str]:
-        return {"artefact": self.artefact, "detail": self.detail}
-
 
 @dataclass
 class Answer:
@@ -129,18 +134,6 @@ class Answer:
     sources: tuple[Source, ...]
     caveats: tuple[str, ...] = ()
     chip: str | None = None
-
-    def as_dict(self) -> dict:
-        return {
-            "id": self.id,
-            "question": self.question,
-            "headline": self.headline,
-            "body": self.body,
-            "keywords": list(self.keywords),
-            "sources": [s.as_dict() for s in self.sources],
-            "caveats": list(self.caveats),
-            "chip": self.chip,
-        }
 
 
 @dataclass
@@ -1505,7 +1498,11 @@ tbody tr:last-child td, tbody tr:last-child th { border-bottom: none; }
   font-family: var(--mono); font-size: .66rem; letter-spacing: .11em;
   text-transform: uppercase; font-weight: 600; display: block; margin-bottom: .4rem;
 }
+.prov ul { margin: 0; padding-left: 1.1rem; }
 .prov li { margin-bottom: .25rem; }
+ul.chip-list {
+  list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: .45rem;
+}
 .prov code {
   background: transparent; color: var(--muted); padding: 0; border-radius: 0;
 }
@@ -1544,427 +1541,696 @@ footer.page {
 footer.page p { max-width: 68ch; }
 """
 
+
+# --------------------------------------------------------------------------
+# cards
+# --------------------------------------------------------------------------
+#
+# Every answer this page can give -- the declared bank, and one card for each
+# month, year and festival in the record -- is rendered to HTML here, in
+# Python, at build time. The page ships the finished cards and looks one up.
+#
+# This is CLAUDE.md 3.1 applied to the console. The browser used to compose
+# these sentences itself: it formatted lakh, summed a part year, and worked out
+# a year-on-year percentage that appeared on a card and existed nowhere in
+# `results/`. Those are numbers a reader sees, so they belong on the same
+# footing as every other number in this project -- computed once, by the same
+# functions, in the module the tests can reach. What is left in the browser is
+# a lookup, and a lookup cannot disagree with the artefact it came from.
+
+
+def _esc(text: object) -> str:
+    """Escape a value read from an artefact before it lands in markup."""
+    return (
+        str(text).replace("&", "&amp;").replace("<", "&lt;")
+        .replace(">", "&gt;").replace('"', "&quot;")
+    )
+
+
+def _provenance(sources: tuple[Source, ...]) -> str:
+    items = "".join(
+        f"<li><code>{_esc(s.artefact)}</code> &mdash; {_esc(s.detail)}</li>"
+        for s in sources
+    )
+    if not items:
+        return ""
+    return ('<div class="prov"><b>Where this comes from</b>'
+            f"<ul>{items}</ul></div>")
+
+
+@dataclass(frozen=True)
+class Card:
+    """One finished answer, ready to be shown.
+
+    ``asked`` and ``html`` may carry a ``{month}`` or ``{year}`` slot, and
+    exactly two cards do: the refusals for a date outside the record, which
+    have to name the date the reader typed. Nothing else on the page is filled
+    in at open time.
+    """
+
+    asked: str
+    headline: str
+    body: str
+    caveats: tuple[str, ...] = ()
+    sources: tuple[Source, ...] = ()
+
+    def html(self) -> str:
+        caveats = "".join(f'<p class="caveat">{c}</p>' for c in self.caveats)
+        return (
+            '<article class="card">'
+            f'<p class="asked">{self.asked}</p>'
+            f'<h2 class="headline">{self.headline}</h2>'
+            f'<div class="body">{self.body}</div>'
+            f"{caveats}{_provenance(self.sources)}</article>"
+        )
+
+    def as_dict(self) -> dict[str, str]:
+        return {"asked": self.asked, "html": self.html()}
+
+
+class _Deck:
+    """The pile of rendered cards the page carries, addressed by index.
+
+    Identical cards collapse onto one entry -- every festival query that finds
+    nothing gets the same refusal, and there is no reason to ship it 300 times.
+    """
+
+    def __init__(self) -> None:
+        self._cards: list[dict[str, str]] = []
+        self._seen: dict[tuple[str, str], int] = {}
+
+    def add(self, card: Card) -> int:
+        rendered = card.as_dict()
+        key = (rendered["asked"], rendered["html"])
+        if key not in self._seen:
+            self._seen[key] = len(self._cards)
+            self._cards.append(rendered)
+        return self._seen[key]
+
+    def as_list(self) -> list[dict[str, str]]:
+        return self._cards
+
+
+def card_for(answer: Answer) -> Card:
+    """The bank's own answers, as cards. Same text the fold below renders."""
+    return Card(
+        asked=answer.question,
+        headline=answer.headline,
+        body=answer.body,
+        caveats=answer.caveats,
+        sources=answer.sources,
+    )
+
+
+# ---- month and year cards ------------------------------------------------
+
+def _forecast_card(tables: dict, key: str) -> Card:
+    row = tables["forecast"][key]
+    label = _month_name(pd.Period(key, freq="M"))
+    dates = row["festival_dates"]
+    pairs = [
+        ["Expected", _lakh(row["forecast"])],
+        ["Likely range (90%)", f"{_lakh(row['lo'])} &ndash; {_lakh(row['hi'])}"],
+        ["Average per day", f"{_people(row['daily'])} over {row['days']} days"],
+        ["If a disruption occurs",
+         f"{_lakh(row['shock_lo'])} &ndash; {_lakh(row['shock_hi'])}"],
+    ]
+    if dates:
+        pairs.append(["Festival days",
+                      f"{len(dates)} &mdash; {_esc(row['festival_labels'])}"])
+    body = (
+        f"<p>This is a forecast, not an observation &mdash; {label} has not "
+        f"happened yet.</p>{_kv(pairs)}"
+    )
+    if dates:
+        listed = "</code> <code>".join(_esc(d) for d in dates)
+        body += (
+            f"<p>Festival days in this month: <code>{listed}</code>. Arrivals "
+            "concentrate on these dates, so they are where surge cover "
+            "belongs.</p>"
+        )
+    return Card(
+        asked=f"Forecast for {label}",
+        headline=(
+            f"About <strong>{_lakh(row['forecast'])}</strong> pilgrims in "
+            f"{label}, or roughly {_people(row['daily'])} a day."
+        ),
+        body=body,
+        caveats=(MONTHLY_CAVEAT,),
+        sources=(Source("results/operations.csv", f"the row for {key}"),),
+    )
+
+
+def _observation_card(tables: dict, key: str) -> Card:
+    count = tables["observations"][key]
+    label = _month_name(pd.Period(key, freq="M"))
+    pairs = [["Pilgrims recorded", _people(count)], ["In lakh", _lakh(count)]]
+
+    year_before = f"{int(key[:4]) - 1}{key[4:]}"
+    if year_before in tables["observations"]:
+        was = tables["observations"][year_before]
+        pairs.append(["Same month, year before", _people(was)])
+        if was:
+            change = (count - was) / was * 100
+            sign = "+" if change >= 0 else ""
+            pairs.append(["Change", f"{sign}{change:.1f}%"])
+
+    body = _kv(pairs)
+    shock = tables["shockMonths"].get(key)
+    if shock:
+        body += (
+            "<p>This month falls inside a declared <strong>shock window</strong>: "
+            f"{_esc(shock)}. It is scored separately from ordinary months "
+            "everywhere in this project.</p>"
+        )
+    if count == 0:
+        body += (
+            "<p>Zero is what the publisher reports, and it is recorded as an "
+            "observation rather than as missing data. The shrine was closed.</p>"
+        )
+    return Card(
+        asked=f"The record for {label}",
+        headline=(
+            f"<strong>{_people(count)}</strong> pilgrims in {label} "
+            f"({_lakh(count)})."
+        ),
+        body=body,
+        sources=(Source("data/raw/monthly.csv", f"the observed row for {key}"),),
+    )
+
+
+def _year_card(tables: dict, year: str) -> Card:
+    total = tables["annual"][year]
+    pairs = [[f"Pilgrims in {year}", _people(total)], ["In lakh", _lakh(total)]]
+    before = str(int(year) - 1)
+    if before in tables["annual"]:
+        was = tables["annual"][before]
+        change = (total - was) / was * 100
+        sign = "+" if total >= was else ""
+        pairs.append([f"{before} for comparison", _people(was)])
+        pairs.append(["Change", f"{sign}{change:.1f}%"])
+    return Card(
+        asked=f"The record for {year}",
+        headline=f"<strong>{_lakh(total)}</strong> pilgrims visited in {year}.",
+        body=_kv(pairs),
+        sources=(Source("data/raw/monthly.csv",
+                        f"the twelve observed months of {year}"),),
+    )
+
+
+def _part_year_card(tables: dict, year: str) -> Card:
+    """A year the record only partly covers.
+
+    Reported as a part-year total and said to be one. The alternative -- a
+    seven-month sum shown in the same units as twelve-month ones -- reads as a
+    collapse that did not happen.
+    """
+    months = sorted(k for k in tables["observations"] if k[:4] == year)
+    total = sum(tables["observations"][k] for k in months)
+    complete = sorted(tables["annual"])
+    last_full = complete[-1] if complete else year
+    plural = "s" if len(months) > 1 else ""
+    return Card(
+        asked=f"The record for {year}",
+        headline=(
+            f"<strong>{_people(total)}</strong> pilgrims so far in {year}, "
+            f"across {len(months)} month{plural}."
+        ),
+        body=(
+            f"<p>{year} is incomplete in the record, so this is a part-year "
+            "total and is not comparable with a full year. The last complete "
+            f"year on record is {last_full}.</p>"
+            + _kv([["Months counted", str(len(months))],
+                   ["Total so far", _people(total)],
+                   ["In lakh", _lakh(total)]])
+        ),
+        sources=(Source("data/raw/monthly.csv",
+                        f"{len(months)} observed months in {year}"),),
+    )
+
+
+def _outside_month_card(tables: dict) -> Card:
+    """The refusal for a month the project does not cover.
+
+    One of the two cards with a slot in it. It names the month the reader asked
+    for, which is the point of it: a refusal that does not repeat the question
+    back reads like a page that did not understand the question.
+    """
+    first = _month_name(pd.Period(tables["firstMonth"], freq="M"))
+    last = _month_name(pd.Period(tables["lastMonth"], freq="M"))
+    horizon = _month_name(pd.Period(max(tables["forecast"]), freq="M"))
+    span = f"covers {tables['firstMonth']} to {tables['lastMonth']}"
+    return Card(
+        asked="The record for {month}",
+        headline="That month is outside what this project covers.",
+        body=(
+            f"<p>The observations run from <strong>{first}</strong> to "
+            f"<strong>{last}</strong>, and the forecast reaches {horizon}. "
+            "There is no number here for {month}, and this page will not "
+            "estimate one for you.</p>"
+        ),
+        sources=(Source("data/raw/monthly.csv", span),),
+    )
+
+
+def _outside_year_card(tables: dict) -> Card:
+    first = _month_name(pd.Period(tables["firstMonth"], freq="M"))
+    last = _month_name(pd.Period(tables["lastMonth"], freq="M"))
+    span = f"covers {tables['firstMonth']} to {tables['lastMonth']}"
+    return Card(
+        asked="The record for {year}",
+        headline="{year} is outside what this project covers.",
+        body=(
+            f"<p>The observations run from <strong>{first}</strong> to "
+            f"<strong>{last}</strong>. There is no figure here for {{year}}, "
+            "and this page will not estimate one.</p>"
+        ),
+        sources=(Source("data/raw/monthly.csv", span),),
+    )
+
+
+# ---- festival cards ------------------------------------------------------
+#
+# Each route pairs the words a reader might type with the labels those words
+# should reach in `results/festivals.csv`. Both are declared, for the reason
+# CLAUDE.md 3.3 gives: a route inferred from the label text would quietly stop
+# matching the day somebody retitles a festival, and the page would answer
+# "no computed date matches that" about a date it holds.
+FESTIVAL_ROUTES: tuple[tuple[str, str], ...] = (
+    ("navratri|navaratri|navratra", "navratri"),
+    (r"\bsharad\b", "sharad"),
+    (r"\bchaitra\b", "chaitra"),
+    (r"diwali|deepavali|lakshmi\s*puja", "diwali|lakshmi"),
+    ("shivaratri|shivratri|mahashivratri", "shivaratri"),
+    ("raksha|rakhi|bandhan", "raksha"),
+)
+
+#: Most dates a query can reach. A year of Navratri is eighteen rows on its
+#: own; past this the card stops being an answer and becomes an almanac.
+FESTIVAL_LIMIT = 14
+
+
+def _no_festival_card() -> Card:
+    return Card(
+        asked="Festival dates",
+        headline="No computed date matches that.",
+        body=(
+            "<p>This project computes five festivals only &mdash; the ones that "
+            "move the monthly count at this shrine. It is not a general almanac, "
+            "and it will not guess a date it has not computed.</p>"
+        ),
+        sources=(Source("results/festivals.csv", "no matching row"),),
+    )
+
+
+def _festival_name(row: dict) -> str:
+    """The festival's name, without the day the label was minted on.
+
+    Every row of a nine-day festival carries the label of its first day, so the
+    label reads ``(day 1)`` on the ninth date as much as on the first. The day
+    is a column of its own; it is shown from the column and dropped from the
+    name, rather than rendering "Sharad Navratri (day 1) - day 9".
+    """
+    return _esc(re.sub(r"\s*\(day \d+\)$", "", row["label"]))
+
+
+def _festival_card(hits: list[dict], named: bool, year: str | None) -> Card:
+    if not hits:
+        return _no_festival_card()
+    hits = hits[:FESTIVAL_LIMIT]
+    first = hits[0]
+    pairs = [
+        [_festival_name(row) + (f" &mdash; day {row['day']}" if row["day"] > 1 else ""),
+         _esc(row["date"])]
+        for row in hits
+    ]
+    scope = _festival_name(first) if named else "Festival dates"
+    return Card(
+        asked=f"{scope} in {year}" if year else f"{scope}, upcoming",
+        headline=(
+            f"<strong>{_festival_name(first)}</strong> falls on "
+            f"<strong>{_esc(first['date'])}</strong>."
+        ),
+        body=(
+            _kv(pairs)
+            + "<p>These dates are computed from an astronomical ephemeris, not "
+            "read from a table. Ask how the festival dates are worked out for "
+            "what that means.</p>"
+        ),
+        sources=(Source("results/festivals.csv",
+                        f"{len(hits)} computed date(s)"),),
+    )
+
+
+def _festival_route(rows: list[dict], deck: _Deck, today: str,
+                    named: bool) -> dict:
+    """One route's cards: a card per year it has dates in, plus its next few."""
+    years = {
+        year: deck.add(_festival_card(
+            [row for row in rows if row["date"][:4] == year], named, year))
+        for year in sorted({row["date"][:4] for row in rows})
+    }
+    upcoming = [row for row in rows if row["date"] >= today]
+    return {"years": years,
+            "upcoming": deck.add(_festival_card(upcoming, named, None))}
+
+
+def _festival_payload(tables: dict, deck: _Deck) -> dict:
+    # "Upcoming" is measured from the last observed month rather than from the
+    # clock. The page is a static file and may be opened years after it was
+    # built; a "next festival" that moved with the reader's calendar would be
+    # the one number here not fixed at build time.
+    today = f"{tables['lastMonth']}-01"
+    rows = tables["festivals"]
+    routes = [
+        dict(_festival_route(
+            [row for row in rows if re.search(labels, row["label"], re.I)],
+            deck, today, named=True), re=query)
+        for query, labels in FESTIVAL_ROUTES
+    ]
+    return {
+        "routes": routes,
+        "generic": _festival_route(rows, deck, today, named=False),
+        "none": deck.add(_no_festival_card()),
+    }
+
+
+# ---- the refusal ---------------------------------------------------------
+
+def _unknown_card(answers: list[Answer]) -> Card:
+    """What the page says when nothing matches.
+
+    It lists the bank rather than showing the nearest match. CLAUDE.md 3.8:
+    the reader here is the one least equipped to notice a confident answer to a
+    question they did not ask.
+    """
+    chips = "".join(
+        f'<li><button class="chip" data-q="{_esc(a.question)}">'
+        f"{_esc(a.question)}</button></li>"
+        for a in answers
+    )
+    return Card(
+        asked="Not understood",
+        headline="I don&rsquo;t have an answer to that, and I won&rsquo;t invent one.",
+        body=(
+            "<p>This page answers from artefacts that have already been computed "
+            "and committed. When nothing matches, it says so rather than showing "
+            "you the nearest thing and letting it read like an answer.</p>"
+            "<p>Here is everything it can answer:</p>"
+            f'<ul class="chip-list">{chips}</ul>'
+            '<p class="muted">You can also ask about any single month or year in '
+            "the record &mdash; for example <em>March 2020</em>, <em>how many "
+            "came in 2019</em>, or <em>when is Diwali</em>.</p>"
+        ),
+    )
+
+
+# --------------------------------------------------------------------------
+# the matcher's vocabulary
+# --------------------------------------------------------------------------
+#
+# Scoring is deliberately dull. Each answer owns a vocabulary: the words of the
+# question it answers, plus its declared keywords. A query scores one point per
+# distinct content word it shares with that vocabulary, and the word count of
+# any declared multi-word phrase it contains outright.
+#
+# The bar is relative, not absolute. A three-word question that matches one
+# incidental word has not been understood; a one-word question that matches its
+# only word has been. An absolute floor gets one of those two wrong whichever
+# value it takes.
+#
+# The vocabularies are built here and shipped as sets. The browser tokenises
+# the query -- it has to, the query does not exist until somebody types it --
+# and does nothing else.
+
+STOPWORDS: tuple[str, ...] = tuple(
+    "a an and are as at be by can could do does for from has have how i in into "
+    "is it its me my of on or please should show tell that the their there these "
+    "this to was were what when where which who will with would you your about "
+    "give get many much am we us".split()
+)
+
+
+def _content_words(text: str) -> list[str]:
+    """The query tokeniser, in Python. ``ui_script`` mirrors it in six lines."""
+    out: list[str] = []
+    for word in re.sub(r"[^a-z0-9\s-]", " ", text.lower()).split():
+        if len(word) < 2 or word in STOPWORDS or word in out:
+            continue
+        out.append(word)
+    return out
+
+
+def _vocabulary(answer: Answer) -> dict[str, int]:
+    words = {word: 1 for word in _content_words(answer.question)}
+    for keyword in answer.keywords:
+        for word in keyword.split(" "):
+            if word not in STOPWORDS and len(word) > 1:
+                words[word] = 1
+    return words
+
+
+def _phrases(answer: Answer) -> list[list]:
+    """Declared multi-word keywords, with what a literal hit on one is worth."""
+    return [[k, len(k.split(" "))] for k in answer.keywords if " " in k]
+
+
+# --------------------------------------------------------------------------
+# the lookup payload
+# --------------------------------------------------------------------------
+
+MONTH_NAMES: tuple[str, ...] = (
+    "January", "February", "March", "April", "May", "June", "July",
+    "August", "September", "October", "November", "December",
+)
+
+
+def _month_words() -> list[list]:
+    """Month names and their three-letter forms, in the order they are tried.
+
+    The third field marks a word that only counts when a year is named beside
+    it. "May" is a modal verb far more often than it is a month: without this,
+    "how many people may come" is a lookup for a month nobody named.
+    """
+    words = []
+    for form in (lambda name: name.lower(), lambda name: name[:3].lower()):
+        for number, name in enumerate(MONTH_NAMES, start=1):
+            token = form(name)
+            words.append([token, number, token == "may"])
+    return words
+
+
+def _default_months(tables: dict) -> dict[str, str]:
+    """Which month a bare month name means, when no year is given.
+
+    The forecast horizon first, then the most recent time that month occurred
+    in the record. Resolved here rather than in the browser because the card
+    states which month it answered, and the two must be the same month.
+    """
+    forecast = sorted(tables["forecast"])
+    observed = sorted(tables["observations"])
+    out: dict[str, str] = {}
+    for number in range(1, 13):
+        ahead = [key for key in forecast if int(key[5:]) == number]
+        behind = [key for key in observed if int(key[5:]) == number]
+        if ahead:
+            out[str(number)] = ahead[0]
+        elif behind:
+            out[str(number)] = behind[-1]
+    return out
+
+
+def build_payload(art: Artefacts, answers: list[Answer],
+                  tables: dict | None = None) -> dict:
+    """Every card the page can show, and the tables that address them.
+
+    The page holds no other route to an answer: if a question does not land on
+    an index in here, it reaches the refusal.
+    """
+    tables = tables if tables is not None else lookup_tables(art)
+    deck = _Deck()
+
+    bank = [
+        {"card": deck.add(card_for(answer)),
+         "vocab": _vocabulary(answer),
+         "phrases": _phrases(answer)}
+        for answer in answers
+    ]
+    forecast = {key: deck.add(_forecast_card(tables, key))
+                for key in sorted(tables["forecast"])}
+    observations = {key: deck.add(_observation_card(tables, key))
+                    for key in sorted(tables["observations"])}
+    years = {
+        year: deck.add(_year_card(tables, year) if year in tables["annual"]
+                       else _part_year_card(tables, year))
+        for year in sorted({key[:4] for key in tables["observations"]})
+    }
+    festivals = _festival_payload(tables, deck)
+
+    payload = {
+        "answers": bank,
+        "forecast": forecast,
+        "observations": observations,
+        "years": years,
+        "festivals": festivals,
+        "nextMonth": forecast[min(forecast)],
+        "outsideMonth": deck.add(_outside_month_card(tables)),
+        "outsideYear": deck.add(_outside_year_card(tables)),
+        "unknown": deck.add(_unknown_card(answers)),
+        "monthNames": list(MONTH_NAMES),
+        "monthWords": _month_words(),
+        "defaultMonth": _default_months(tables),
+        "stopwords": {word: 1 for word in STOPWORDS},
+        "floor": MATCH_FLOOR,
+        "opening": answers[0].question,
+    }
+    # Last: every card has to be in the deck before the deck is read out.
+    payload["cards"] = deck.as_list()
+    return payload
+
+
+# --------------------------------------------------------------------------
+# the browser's share of the work
+# --------------------------------------------------------------------------
+#
+# What is left here is routing: read the query, find the index, show the card.
+# It composes one string -- the date a refusal names back to the reader -- and
+# no others, and it does no arithmetic at all. Everything it can display was
+# written by the functions above, which the test suite can call directly.
+#
+# Keeping it this small is not tidiness. A sentence assembled in the browser is
+# a sentence no test in this repository can reach: `pytest` sees the payload
+# and node sees the routing, but neither sees a number formatted by a function
+# that exists only inside a string constant. That is where the browser's copy
+# of `_lakh` lived, and a second definition of a formatting rule is a second
+# place for it to be wrong.
 SCRIPT = r"""
 (function () {
   "use strict";
 
   var D = window.__YATRA__;
-  var MONTHS = ["january","february","march","april","may","june","july",
-                "august","september","october","november","december"];
-  var SHORT = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
 
-  function esc(s) {
-    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  function card(index) { return D.cards[index]; }
+
+  // The only text assembled in the browser: a refusal has to name the month or
+  // year the reader typed, and that is not knowable at build time.
+  function fill(source, values) {
+    function sub(text) {
+      return text.replace(/\{(month|year)\}/g, function (_, key) {
+        return values[key];
+      });
+    }
+    return { asked: sub(source.asked), html: sub(source.html) };
   }
-  function lakh(n) {
-    // Matches _lakh() in ui.py: an exact zero is a measured floor, not a
-    // rounded-down small number, and "0.00 lakh" hides that.
-    if (n === 0) return "zero";
-    return (n / 1e5).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",") + " lakh";
-  }
-  function people(n) {
-    return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  }
-  function both(n) { return lakh(n) + " · " + people(n) + " people"; }
   function monthLabel(key) {
-    var parts = key.split("-");
-    return MONTHS[parseInt(parts[1], 10) - 1].replace(/^./, function (c) {
-      return c.toUpperCase();
-    }) + " " + parts[0];
+    return D.monthNames[parseInt(key.slice(5), 10) - 1] + " " + key.slice(0, 4);
   }
   function pad(n) { return n < 10 ? "0" + n : "" + n; }
 
-  // ---- month / year parsing -------------------------------------------
+  // ---- parsing ---------------------------------------------------------
   function findYear(q) {
     var m = q.match(/\b(19\d{2}|20\d{2})\b/);
     return m ? m[1] : null;
   }
-  function findMonthWord(q) {
-    var hasYear = findYear(q) !== null;
-    for (var i = 0; i < MONTHS.length; i++) {
-      // "may" is a modal verb far more often than it is a month. Reading it as
-      // May would turn "how many people may come" into a lookup for a month
-      // nobody named, so it counts only when a year is named beside it.
-      if (MONTHS[i] === "may" && !hasYear) continue;
-      if (new RegExp("\\b" + MONTHS[i] + "\\b").test(q)) return i + 1;
-    }
-    for (var j = 0; j < SHORT.length; j++) {
-      if (SHORT[j] === "may" && !hasYear) continue;
-      if (new RegExp("\\b" + SHORT[j] + "\\b\\.?").test(q)) return j + 1;
-    }
-    return null;
-  }
   function findMonthKey(q) {
     var iso = q.match(/\b(19\d{2}|20\d{2})[-\/](\d{1,2})\b/);
-    if (iso) return iso[1] + "-" + pad(parseInt(iso[2], 10));
-    var word = findMonthWord(q);
-    if (!word) return null;
-    var year = findYear(q);
-    if (year) return year + "-" + pad(word);
-    // A month named without a year. Prefer the forecast horizon if it covers
-    // that month, otherwise the most recent time it occurred in the record.
-    // The card always states which month it answered, so this cannot pass for
-    // a different one.
-    var keys = Object.keys(D.forecast);
-    for (var i = 0; i < keys.length; i++) {
-      if (parseInt(keys[i].split("-")[1], 10) === word) return keys[i];
+    if (iso) {
+      var m = parseInt(iso[2], 10);
+      if (m >= 1 && m <= 12) return iso[1] + "-" + pad(m);
     }
-    var obs = Object.keys(D.observations).sort();
-    for (var j = obs.length - 1; j >= 0; j--) {
-      if (parseInt(obs[j].split("-")[1], 10) === word) return obs[j];
-    }
-    return null;
-  }
-
-  // ---- lookup answers --------------------------------------------------
-  function forecastAnswer(key) {
-    var f = D.forecast[key];
-    var rows = [
-      ["Expected", lakh(f.forecast)],
-      ["Likely range (90%)", lakh(f.lo) + " – " + lakh(f.hi)],
-      ["Average per day", people(f.daily) + " over " + f.days + " days"],
-      ["If a disruption occurs", lakh(f.shock_lo) + " – " + lakh(f.shock_hi)]
-    ];
-    if (f.festival_dates.length) {
-      rows.push(["Festival days", f.festival_dates.length + " — " +
-                 esc(f.festival_labels)]);
-    }
-    var body = "<p>This is a forecast, not an observation — " +
-      monthLabel(key) + " has not happened yet.</p>" + kv(rows);
-    if (f.festival_dates.length) {
-      body += "<p>Festival days in this month: <code>" +
-        f.festival_dates.join("</code> <code>") + "</code>. Arrivals concentrate " +
-        "on these dates, so they are where surge cover belongs.</p>";
-    }
-    return {
-      asked: "Forecast for " + monthLabel(key),
-      headline: "About <strong>" + lakh(f.forecast) + "</strong> pilgrims in " +
-        monthLabel(key) + ", or roughly " + people(f.daily) + " a day.",
-      body: body,
-      caveats: [D.monthlyCaveat],
-      sources: [{ artefact: "results/operations.csv", detail: "the row for " + key }]
-    };
-  }
-
-  function observationAnswer(key) {
-    var n = D.observations[key];
-    var shock = D.shockMonths[key];
-    var body = "";
-    var rows = [["Pilgrims recorded", people(n)], ["In lakh", lakh(n)]];
-    var prev = key.split("-");
-    var yearBefore = (parseInt(prev[0], 10) - 1) + "-" + prev[1];
-    if (D.observations[yearBefore] !== undefined) {
-      var was = D.observations[yearBefore];
-      var change = was === 0 ? null : ((n - was) / was) * 100;
-      rows.push(["Same month, year before", people(was)]);
-      if (change !== null) {
-        rows.push(["Change", (change >= 0 ? "+" : "") + change.toFixed(1) + "%"]);
+    var year = findYear(q), number = null;
+    for (var i = 0; i < D.monthWords.length; i++) {
+      var word = D.monthWords[i];
+      if (word[2] && !year) continue;
+      if (new RegExp("\\b" + word[0] + "\\b\\.?").test(q)) {
+        number = word[1];
+        break;
       }
     }
-    body += kv(rows);
-    if (shock) {
-      body += "<p>This month falls inside a declared <strong>shock window</strong>: " +
-        esc(shock) + ". It is scored separately from ordinary months everywhere " +
-        "in this project.</p>";
-    }
-    if (n === 0) {
-      body += "<p>Zero is what the publisher reports, and it is recorded as an " +
-        "observation rather than as missing data. The shrine was closed.</p>";
-    }
-    return {
-      asked: "The record for " + monthLabel(key),
-      headline: "<strong>" + people(n) + "</strong> pilgrims in " +
-        monthLabel(key) + " (" + lakh(n) + ").",
-      body: body,
-      caveats: [],
-      sources: [{ artefact: "data/raw/monthly.csv", detail: "the observed row for " + key }]
-    };
-  }
-
-  function yearAnswer(year) {
-    var total = D.annual[year];
-    if (total === undefined) {
-      var known = Object.keys(D.annual).sort();
-      var partial = 0, count = 0;
-      Object.keys(D.observations).forEach(function (k) {
-        if (k.slice(0, 4) === year) { partial += D.observations[k]; count++; }
-      });
-      if (count > 0) {
-        return {
-          asked: "The record for " + year,
-          headline: "<strong>" + people(partial) + "</strong> pilgrims so far in " +
-            year + ", across " + count + " month" + (count > 1 ? "s" : "") + ".",
-          body: "<p>" + year + " is incomplete in the record, so this is a " +
-            "part-year total and is not comparable with a full year. The last " +
-            "complete year on record is " + known[known.length - 1] + ".</p>" +
-            kv([["Months counted", String(count)],
-                ["Total so far", people(partial)],
-                ["In lakh", lakh(partial)]]),
-          caveats: [],
-          sources: [{ artefact: "data/raw/monthly.csv",
-                      detail: count + " observed months in " + year }]
-        };
-      }
-      // A year named that the record does not reach. Saying so is the answer.
-      // Falling through to the keyword bank here is how "how many came in
-      // 1985" once returned next August's forecast.
-      return {
-        asked: "The record for " + year,
-        headline: year + " is outside what this project covers.",
-        body: "<p>The observations run from <strong>" + monthLabel(D.firstMonth) +
-          "</strong> to <strong>" + monthLabel(D.lastMonth) + "</strong>. There " +
-          "is no figure here for " + year + ", and this page will not estimate " +
-          "one.</p>",
-        caveats: [],
-        sources: [{ artefact: "data/raw/monthly.csv",
-                    detail: "covers " + D.firstMonth + " to " + D.lastMonth }]
-      };
-    }
-    var before = String(parseInt(year, 10) - 1);
-    var rows = [["Pilgrims in " + year, people(total)], ["In lakh", lakh(total)]];
-    if (D.annual[before] !== undefined) {
-      var was = D.annual[before];
-      rows.push([before + " for comparison", people(was)]);
-      rows.push(["Change", (total >= was ? "+" : "") +
-                 (((total - was) / was) * 100).toFixed(1) + "%"]);
-    }
-    return {
-      asked: "The record for " + year,
-      headline: "<strong>" + lakh(total) + "</strong> pilgrims visited in " +
-        year + ".",
-      body: kv(rows),
-      caveats: [],
-      sources: [{ artefact: "data/raw/monthly.csv",
-                  detail: "the twelve observed months of " + year }]
-    };
-  }
-
-  function outsideAnswer(key) {
-    return {
-      asked: "The record for " + monthLabel(key),
-      headline: "That month is outside what this project covers.",
-      body: "<p>The observations run from <strong>" + monthLabel(D.firstMonth) +
-        "</strong> to <strong>" + monthLabel(D.lastMonth) + "</strong>, and the " +
-        "forecast reaches " + monthLabel(Object.keys(D.forecast).sort().pop()) +
-        ". There is no number here for " + monthLabel(key) + ", and this page " +
-        "will not estimate one for you.</p>",
-      caveats: [],
-      sources: [{ artefact: "data/raw/monthly.csv",
-                  detail: "covers " + D.firstMonth + " to " + D.lastMonth }]
-    };
+    if (!number) return null;
+    if (year) return year + "-" + pad(number);
+    return D.defaultMonth[number] || null;
   }
 
   // ---- festivals -------------------------------------------------------
-  var FESTIVAL_WORDS = [
-    { re: /navratri|navaratri|navratra/, match: /navratri/i },
-    { re: /\bsharad\b/, match: /sharad/i },
-    { re: /\bchaitra\b/, match: /chaitra/i },
-    { re: /diwali|deepavali|lakshmi\s*puja/, match: /diwali|lakshmi/i },
-    { re: /shivaratri|shivratri|mahashivratri/, match: /shivaratri/i },
-    { re: /raksha|rakhi|bandhan/, match: /raksha/i }
-  ];
-
-  function festivalAnswer(q) {
-    var picked = null;
-    for (var i = 0; i < FESTIVAL_WORDS.length; i++) {
-      if (FESTIVAL_WORDS[i].re.test(q)) { picked = FESTIVAL_WORDS[i]; break; }
+  function festivalCard(q) {
+    var routes = D.festivals.routes, route = null;
+    for (var i = 0; i < routes.length; i++) {
+      if (new RegExp(routes[i].re).test(q)) { route = routes[i]; break; }
     }
-    var wantsUpcoming = !picked && /\bwhen\b|\bnext\b|\bupcoming\b/.test(q) &&
-                        /festival/.test(q);
-    if (!picked && !wantsUpcoming) return null;
-
+    if (!route) {
+      if (!(/\bwhen\b|\bnext\b|\bupcoming\b/.test(q) && /festival/.test(q))) {
+        return null;
+      }
+      route = D.festivals.generic;
+    }
     var year = findYear(q);
-    var today = D.lastMonth + "-01";
-    var hits = D.festivals.filter(function (f) {
-      if (picked && !picked.match.test(f.label)) return false;
-      if (year) return f.date.slice(0, 4) === year;
-      return f.date >= today;
-    });
-    if (!hits.length) {
-      return {
-        asked: "Festival dates",
-        headline: "No computed date matches that.",
-        body: "<p>This project computes five festivals only — the ones that " +
-          "move the monthly count at this shrine. It is not a general almanac, " +
-          "and it will not guess a date it has not computed.</p>",
-        caveats: [],
-        sources: [{ artefact: "results/festivals.csv", detail: "no matching row" }]
-      };
-    }
-    hits = hits.slice(0, 14);
-    var rows = hits.map(function (f) {
-      return [f.label + (f.day > 1 ? " — day " + f.day : ""), f.date];
-    });
-    var first = hits[0];
-    var scope = picked ? first.label : "Festival dates";
-    return {
-      asked: scope + (year ? " in " + year : ", upcoming"),
-      headline: "<strong>" + esc(first.label) + "</strong> falls on <strong>" +
-        first.date + "</strong>.",
-      body: kv(rows) + "<p>These dates are computed from an astronomical " +
-        "ephemeris, not read from a table. Ask how the festival dates are worked " +
-        "out for what that means.</p>",
-      caveats: [],
-      sources: [{ artefact: "results/festivals.csv",
-                  detail: hits.length + " computed date(s)" }]
-    };
-  }
-
-  function kv(rows) {
-    var body = rows.map(function (r) {
-      return '<tr><th class="left">' + r[0] + '</th><td class="right">' +
-        r[1] + "</td></tr>";
-    }).join("");
-    return '<div class="scroll"><table class="kv"><tbody>' + body +
-      "</tbody></table></div>";
+    var index = year ? route.years[year] : route.upcoming;
+    return card(index === undefined ? D.festivals.none : index);
   }
 
   // ---- the bank --------------------------------------------------------
-  //
-  // Scoring is deliberately dull. Each answer owns a vocabulary: the words of
-  // the question it answers, plus its declared keywords. A query scores one
-  // point per distinct content word it shares with that vocabulary, and the
-  // word count of any declared multi-word phrase it contains outright.
-  //
-  // The bar is relative, not absolute. A three-word question that matches one
-  // incidental word has not been understood; a one-word question that matches
-  // its only word has been. An absolute floor gets one of those two wrong
-  // whichever value it takes.
-
-  var STOP = {};
-  ("a an and are as at be by can could do does for from has have how i in into is " +
-   "it its me my of on or please should show tell that the their there these this " +
-   "to was were what when where which who will with would you your about give get " +
-   "many much am we us")
-    .split(" ").forEach(function (w) { STOP[w] = true; });
-
   function contentWords(q) {
     var seen = {}, out = [];
     q.replace(/[^a-z0-9\s-]/g, " ").split(/\s+/).forEach(function (w) {
-      if (!w || STOP[w] || w.length < 2 || seen[w]) return;
+      if (!w || D.stopwords[w] || w.length < 2 || seen[w]) return;
       seen[w] = true;
       out.push(w);
     });
     return out;
   }
-
-  var VOCAB = null;
-  function vocabulary(a) {
-    var words = {};
-    contentWords(a.question.toLowerCase()).forEach(function (w) { words[w] = true; });
-    a.keywords.forEach(function (k) {
-      k.split(" ").forEach(function (w) { if (!STOP[w] && w.length > 1) words[w] = true; });
-    });
-    return words;
-  }
-
-  function scoreBank(q) {
-    if (!VOCAB) { VOCAB = D.answers.map(vocabulary); }
+  function bankCard(q) {
     var words = contentWords(q);
     if (!words.length) return null;
-
-    var best = null, bestScore = 0;
-    D.answers.forEach(function (a, index) {
-      var vocab = VOCAB[index];
+    var best = -1, bestScore = 0;
+    D.answers.forEach(function (answer, index) {
       var score = 0;
-      words.forEach(function (w) { if (vocab[w]) score += 1; });
-      a.keywords.forEach(function (k) {
-        if (k.indexOf(" ") === -1) return;
-        if (q.indexOf(k) > -1) score += k.split(" ").length;
+      words.forEach(function (w) { if (answer.vocab[w]) score += 1; });
+      answer.phrases.forEach(function (p) {
+        if (q.indexOf(p[0]) > -1) score += p[1];
       });
-      if (score > bestScore) { bestScore = score; best = a; }
+      if (score > bestScore) { bestScore = score; best = index; }
     });
-
-    var required = Math.min(D.floor, words.length);
-    if (!best || bestScore < required) return null;
-    return {
-      asked: best.question,
-      headline: best.headline,
-      body: best.body,
-      caveats: best.caveats,
-      sources: best.sources
-    };
+    if (best < 0 || bestScore < Math.min(D.floor, words.length)) return null;
+    return card(D.answers[best].card);
   }
 
-  function unknown() {
-    var list = D.answers.map(function (a) {
-      return '<li><button class="chip" data-q="' + esc(a.question) + '">' +
-        esc(a.question) + "</button></li>";
-    }).join("");
-    return {
-      asked: "Not understood",
-      headline: "I don't have an answer to that, and I won't invent one.",
-      body: "<p>This page answers from artefacts that have already been computed " +
-        "and committed. When nothing matches, it says so rather than showing you " +
-        "the nearest thing and letting it read like an answer.</p>" +
-        "<p>Here is everything it can answer:</p>" +
-        '<ul style="list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:.45rem">' +
-        list + "</ul>" +
-        "<p class=\"muted\">You can also ask about any single month or year in " +
-        "the record — for example <em>March 2020</em>, <em>how many came in " +
-        "2019</em>, or <em>when is Diwali</em>.</p>",
-      caveats: [],
-      sources: []
-    };
-  }
-
+  // ---- routing ---------------------------------------------------------
   function resolve(raw) {
-    var q = raw.toLowerCase().trim();
+    var q = String(raw).toLowerCase().trim();
     if (!q) return null;
 
-    var fest = festivalAnswer(q);
-    if (fest) return fest;
+    var festival = festivalCard(q);
+    if (festival) return festival;
 
-    if (/\bnext month\b/.test(q)) {
-      return forecastAnswer(Object.keys(D.forecast).sort()[0]);
-    }
+    if (/\bnext month\b/.test(q)) return card(D.nextMonth);
 
     var key = findMonthKey(q);
     if (key) {
-      if (D.forecast[key]) return forecastAnswer(key);
-      if (D.observations[key] !== undefined) return observationAnswer(key);
-      return outsideAnswer(key);
+      if (D.forecast[key] !== undefined) return card(D.forecast[key]);
+      if (D.observations[key] !== undefined) return card(D.observations[key]);
+      return fill(card(D.outsideMonth), { month: monthLabel(key) });
     }
 
     var year = findYear(q);
     if (year && !/\bhorizon\b/.test(q)) {
-      var ya = yearAnswer(year);
-      if (ya) return ya;
+      if (D.years[year] !== undefined) return card(D.years[year]);
+      // A year the record does not reach. Saying so is the answer: falling
+      // through to the keyword bank is how "how many came in 1985" once
+      // returned next August's forecast.
+      return fill(card(D.outsideYear), { year: year });
     }
 
-    return scoreBank(q) || unknown();
-  }
-
-  // ---- rendering -------------------------------------------------------
-  function render(answer, raw) {
-    var el = document.getElementById("answer");
-    var prov = "";
-    if (answer.sources && answer.sources.length) {
-      prov = '<div class="prov"><b>Where this comes from</b><ul style="margin:0;' +
-        'padding-left:1.1rem">' + answer.sources.map(function (s) {
-          return "<li><code>" + esc(s.artefact) + "</code> — " +
-            esc(s.detail) + "</li>";
-        }).join("") + "</ul></div>";
-    }
-    var caveats = (answer.caveats || []).map(function (c) {
-      return '<p class="caveat">' + c + "</p>";
-    }).join("");
-    el.innerHTML =
-      '<article class="card">' +
-        '<p class="asked">' + esc(answer.asked) + "</p>" +
-        '<h2 class="headline">' + answer.headline + "</h2>" +
-        '<div class="body">' + answer.body + "</div>" +
-        caveats + prov +
-      "</article>";
-    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    return bankCard(q) || card(D.unknown);
   }
 
   function ask(raw) {
     var answer = resolve(raw);
     if (!answer) return;
     document.getElementById("q").value = raw;
-    render(answer, raw);
+    var el = document.getElementById("answer");
+    el.innerHTML = answer.html;
+    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
   document.addEventListener("click", function (event) {
@@ -1979,14 +2245,15 @@ SCRIPT = r"""
   });
 
   window.__ask = ask;
-  // Exposed so the matcher can be exercised without a DOM. tests/test_ui.py
+  // Exposed so the routing can be exercised without a DOM. tests/test_ui.py
   // drives it through node against a battery of questions, because "the page
   // answers the wrong question confidently" is not a failure any Python-side
   // assertion about the HTML would catch.
   window.__resolve = resolve;
 
   // Open on the question most readers arrive with, so the page is never a
-  // blank box waiting to be interrogated.
+  // blank box waiting to be interrogated. Routed rather than shown directly:
+  // if the bank stops matching its own opening question, the page says so.
   ask(D.opening);
 })();
 """
@@ -1995,24 +2262,32 @@ SCRIPT = r"""
 def _card(answer: Answer) -> str:
     """One answer rendered statically, for the browsable section below the box.
 
-    The whole bank is in the page as plain HTML, not only inside the script.
+    The whole bank is in the page as plain HTML, not only inside the payload.
     A reader with JavaScript disabled loses the ask box and keeps every answer.
     """
     caveats = "".join(f'<p class="caveat">{c}</p>' for c in answer.caveats)
-    sources = "".join(
-        f"<li><code>{s.artefact}</code> &mdash; {s.detail}</li>"
-        for s in answer.sources
-    )
-    prov = (
-        '<div class="prov"><b>Where this comes from</b>'
-        f'<ul style="margin:0;padding-left:1.1rem">{sources}</ul></div>'
-        if sources else ""
-    )
     return (
         f'<details class="card fold"><summary>{answer.question}</summary>'
         f'<h3 class="headline">{answer.headline}</h3>'
-        f'<div class="body">{answer.body}</div>{caveats}{prov}</details>'
+        f"<div class=\"body\">{answer.body}</div>{caveats}"
+        f"{_provenance(answer.sources)}</details>"
     )
+
+
+def _script_safe(blob: str) -> str:
+    """Make a JSON blob safe to sit inside a ``<script>`` block.
+
+    An HTML parser ends a script element at the first ``</``, and treats
+    ``<!--`` as the start of a comment, so those two sequences are escaped and
+    nothing else is. ``\\/`` is a JSON escape for ``/``, so the result still
+    parses -- ``tests/test_ui.py`` reads the payload back out of the page.
+
+    Escaping every ``<`` instead would be safe too, and was what this did while
+    the payload was a handful of tables. It is not free any more: the payload
+    is now the page's rendered answers, and six bytes per angle bracket is a
+    third of the file.
+    """
+    return blob.replace("</", "<\\/").replace("<!--", "\\u003c!--")
 
 
 def render(art: Artefacts, answers: list[Answer] | None = None,
@@ -2021,19 +2296,10 @@ def render(art: Artefacts, answers: list[Answer] | None = None,
     answers = answers if answers is not None else build_answers(art)
     generated = generated or dt.date.today()
 
-    payload = lookup_tables(art)
-    payload["answers"] = [a.as_dict() for a in answers]
-    payload["floor"] = MATCH_FLOOR
-    payload["monthlyCaveat"] = MONTHLY_CAVEAT
-    payload["opening"] = answers[0].question
-
-    # `</script>` inside a JSON string would close the block early. Escaping the
-    # angle brackets is the standard fix and keeps the payload valid JSON.
-    blob = (
+    tables = lookup_tables(art)
+    payload = build_payload(art, answers, tables)
+    blob = _script_safe(
         json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
-        .replace("<", "\\u003c")
-        .replace(">", "\\u003e")
-        .replace("&", "\\u0026")
     )
 
     # Only the first few, in declared order. Every answer is browsable in full
@@ -2045,14 +2311,15 @@ def render(art: Artefacts, answers: list[Answer] | None = None,
     )
 
     site_short = "Shri Mata Vaishno Devi, Katra"
-    first_month = _month_name(pd.Period(payload["firstMonth"], freq="M"))
-    last_month = _month_name(pd.Period(payload["lastMonth"], freq="M"))
+    first_month = _month_name(pd.Period(tables["firstMonth"], freq="M"))
+    last_month = _month_name(pd.Period(tables["lastMonth"], freq="M"))
     meta = "".join(
         f"<span>{item}</span>"
         for item in (
             f"{len(art.monthly):,} months observed",
             f"last observed: {last_month}",
             f"{len(art.metrics):,} forecasts scored",
+            f"{len(payload['cards']):,} answers rendered",
             f"generated {generated.isoformat()}",
         )
     )

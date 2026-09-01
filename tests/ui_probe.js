@@ -6,8 +6,12 @@
 // the failure this project is built against, wearing a friendlier face.
 //
 // Usage: node tests/ui_probe.js <path-to-yatra.html>
-// Reads questions as JSON lines on stdin, writes one JSON object per line:
-//   {"q": ..., "asked": ..., "headline": ..., "sources": [...]}
+// Reads questions as lines on stdin, writes one JSON object per line:
+//   {"q": ..., "asked": ..., "html": ...}
+//
+// The resolver returns a card the page already holds, rendered by ui.py at
+// build time. What is under test here is which card a question reaches; what
+// is printed on it is the Python tests' business.
 
 "use strict";
 
@@ -54,16 +58,13 @@ process.stdin.on("end", () => {
     try {
       result = globalThis.__resolve(question);
     } catch (err) {
-      result = { asked: "THREW", headline: String(err), sources: [] };
+      result = { asked: "THREW", html: String(err) };
     }
     process.stdout.write(
       JSON.stringify({
         q: question,
         asked: result ? result.asked : null,
-        headline: result ? result.headline : null,
-        body: result ? result.body : null,
-        caveats: result ? result.caveats : [],
-        sources: result ? result.sources : [],
+        html: result ? result.html : null,
       }) + "\n"
     );
   }

@@ -273,6 +273,13 @@ number on it has already been computed, scored and committed, and the page is a
 reader over those artefacts in exactly the way the generated section of this
 README is.
 
+Every answer it can give is written by `ui.py` at build time — the ones about
+the project, and one for each month, year and festival in the record. The page
+carries those finished cards and looks one up. What is left in the browser is
+routing: read the question, find the card, show it. It formats nothing and adds
+nothing up, so there is no second copy of a rule like *how a count is written in
+lakh* sitting where no test can reach it.
+
 Three properties of it are deliberate and are held in place by tests:
 
 - **It refuses.** When nothing matches, it says so and lists what it can answer.

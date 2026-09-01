@@ -196,6 +196,26 @@ holds and is what makes this an acceptable amendment:
 - **It computes nothing.** By the time it runs, every number it can show has
   been scored and committed. It reads `results/`; it never calls a model. There
   is no code path from the page back into `models.py`.
+- **The answers are rendered in Python, not in the browser.** `ui.py` builds a
+  card — finished HTML — for every question the page can answer, including one
+  per month, per year and per festival in the record, and ships them as a deck
+  the payload addresses by index. The browser routes: it reads the query, finds
+  an index, and shows that card. It composes exactly one string, the date a
+  refusal names back to the reader, and does no arithmetic at all.
+
+  This is §3.1 applied one surface further out. The matcher used to format lakh,
+  sum a part year and work out a year-on-year change in the browser — numbers a
+  reader saw, in a second copy of `_lakh` and `_people` that lived inside a
+  string constant where neither `pytest` nor the node probe could reach it. A
+  formatting rule with two definitions has two places to be wrong.
+  `tests/test_ui.py` asserts `SCRIPT` contains no `toFixed`, `toLocaleString`,
+  `Math.round` or `1e5`, and that the routing tables and the deck address each
+  other exactly — an index off the end is a question that answers with nothing,
+  and an unaddressed card is an answer the page silently stops giving.
+
+  The cost is the file: pre-rendering every month and festival card roughly
+  doubles the payload. That is the trade taken deliberately. It buys a page
+  whose every sentence was produced by a function the tests can call.
 - **It runs inside `all`, after every stage it reads**, and calls
   `assert_labels_current` like the other regime-consuming stages. It is the
   second document a non-technical reader opens away from the run that produced

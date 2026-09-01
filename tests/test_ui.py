@@ -237,6 +237,57 @@ def test_the_lookup_payload_invents_no_months(artefacts):
     assert tables["observations"] == expected
 
 
+#: Things the browser must not be seen doing. Every one of them was in the
+#: matcher before the answers were rendered in Python: it divided by 1e5 to get
+#: lakh, rounded a year-on-year change to one place, and grouped thousands with
+#: a regex -- a second, untested copy of `_lakh`, `_people` and `_pct` living
+#: inside a string constant. A number a reader sees has to come from the same
+#: function every other number in this project comes from.
+BROWSER_ARITHMETIC = ("toFixed", "toLocaleString", "Math.round", "1e5",
+                      "parseFloat", "reduce(")
+
+
+def test_the_browser_formats_no_numbers():
+    found = [token for token in BROWSER_ARITHMETIC if token in ui.SCRIPT]
+    assert not found, (
+        f"ui.SCRIPT contains {found}. The page's job is to look a card up; a "
+        "figure it formats itself is one no test in this repository can reach, "
+        "and one that can drift from the artefact it was read out of."
+    )
+
+
+def test_every_route_addresses_a_card_and_every_card_is_addressed(artefacts, answers):
+    """The routing tables and the deck must agree in both directions.
+
+    An index off the end of the deck is a question that answers with nothing.
+    A card nothing addresses is the other failure this project keeps meeting:
+    an answer built, shipped, and silently unreachable -- CLAUDE.md 3.3 in its
+    fourth incarnation.
+    """
+    payload = ui.build_payload(artefacts, answers)
+    cards = payload["cards"]
+
+    addressed: set[int] = {
+        payload["outsideMonth"], payload["outsideYear"], payload["unknown"],
+        payload["nextMonth"], payload["festivals"]["none"],
+    }
+    addressed.update(a["card"] for a in payload["answers"])
+    for table in ("forecast", "observations", "years"):
+        addressed.update(payload[table].values())
+    for route in payload["festivals"]["routes"] + [payload["festivals"]["generic"]]:
+        addressed.update(route["years"].values())
+        addressed.add(route["upcoming"])
+
+    out_of_range = sorted(i for i in addressed if not 0 <= i < len(cards))
+    assert not out_of_range, f"routes point at cards {out_of_range}, which do not exist"
+
+    orphans = sorted(set(range(len(cards))) - addressed)
+    assert not orphans, (
+        f"{len(orphans)} cards are rendered into the page and reachable by no "
+        f"question: {[cards[i]['asked'] for i in orphans[:5]]}"
+    )
+
+
 def test_part_years_are_not_reported_as_annual_totals(artefacts):
     """A seven-month total shown beside twelve-month ones reads as a collapse."""
     tables = ui.lookup_tables(artefacts)
@@ -319,8 +370,7 @@ def test_a_forecast_answer_always_carries_the_monthly_caveat(routed):
     for question, expected in ROUTES:
         if not question or not expected or "Forecast for" not in expected:
             continue
-        caveats = " ".join(routed[question]["caveats"])
-        assert "per month" in caveats, (
+        assert "per month" in routed[question]["html"], (
             f"the answer to {question!r} gives a planning number with no "
             "statement that it is monthly"
         )
@@ -333,7 +383,9 @@ def test_every_answer_the_matcher_returns_cites_something(routed):
         got = routed[question]
         if got["asked"] == "Not understood":
             continue
-        assert got["sources"], f"{question!r} answered with no citation"
+        assert 'class="prov"' in got["html"], (
+            f"{question!r} answered with no citation"
+        )
 
 
 # --------------------------------------------------------------------------
