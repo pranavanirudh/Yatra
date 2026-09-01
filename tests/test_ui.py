@@ -6,8 +6,9 @@ gets tested for.
 **It must not answer the wrong question confidently.** A keyword matcher that
 returns its least-bad match will hand somebody the forecast when they asked how
 many marshals to deploy, and the card will look exactly as authoritative either
-way. That routing is exercised through the real matcher in node, because
-asserting things about the HTML cannot catch it.
+way. The routing is defined in `ui.resolve` and exercised here directly; the
+copy of it the page carries is driven over the same battery through node and
+required to reach the same card, byte for byte.
 
 **Every number must still trace to a row.** The page is where a typed constant
 would be least visible: nobody cross-checks a sentence. So every artefact an
@@ -62,6 +63,11 @@ def answers(artefacts):
 @pytest.fixture(scope="module")
 def page(artefacts, answers):
     return ui.render(artefacts, answers)
+
+
+@pytest.fixture(scope="module")
+def payload(artefacts, answers):
+    return ui.build_payload(artefacts, answers)
 
 
 # --------------------------------------------------------------------------
@@ -256,7 +262,7 @@ def test_the_browser_formats_no_numbers():
     )
 
 
-def test_every_route_addresses_a_card_and_every_card_is_addressed(artefacts, answers):
+def test_every_route_addresses_a_card_and_every_card_is_addressed(payload):
     """The routing tables and the deck must agree in both directions.
 
     An index off the end of the deck is a question that answers with nothing.
@@ -264,7 +270,6 @@ def test_every_route_addresses_a_card_and_every_card_is_addressed(artefacts, ans
     an answer built, shipped, and silently unreachable -- CLAUDE.md 3.3 in its
     fourth incarnation.
     """
-    payload = ui.build_payload(artefacts, answers)
     cards = payload["cards"]
 
     addressed: set[int] = {
@@ -301,8 +306,15 @@ def test_part_years_are_not_reported_as_annual_totals(artefacts):
 
 
 # --------------------------------------------------------------------------
-# routing -- the part only the real matcher can answer
+# routing -- which card a question reaches
 # --------------------------------------------------------------------------
+#
+# `ui.resolve` is the definition and is exercised by pytest alone. The page
+# carries a copy of it, because a query does not exist until somebody types
+# one; the copy is not left on trust, and the conformance test below drives
+# both over the same battery through node and requires the same card out of
+# each. If node is absent only that check skips -- the routing itself is still
+# tested, which it was not while it lived in a string constant.
 
 #: (question, id of the answer it must reach). "?" means it must be refused.
 #: These are the confusions that actually happened while the matcher was being
@@ -337,17 +349,85 @@ ROUTES = (
 )
 
 
+#: Questions the regression set does not cover, run only for conformance. Each
+#: is a place the two copies could disagree without either looking wrong on its
+#: own: a month word that is also a modal verb, an ISO date with an impossible
+#: month, the guard that keeps "horizon" from being read as a year, a festival
+#: spelled with a diacritic, punctuation the tokeniser strips.
+CONFORMANCE_EXTRAS = (
+    "MARCH 2020",
+    "2020/03",
+    "2020-3",
+    "2085/13",
+    "when is navratri in 2027",
+    "navratri 1993",
+    "festivals in 1999",
+    "when is the next festival",
+    "how many people may come",
+    "may 2019",
+    "what about the horizon in 2019",
+    "sep 2021",
+    "sept 2021",
+    "diwali & lakshmi puja!",
+    "Navrātri 2026",
+    "how many, in October?",
+)
+
+#: Everything both copies are driven over.
+BATTERY = tuple(q for q, _ in ROUTES if q) + CONFORMANCE_EXTRAS
+
+
+@pytest.mark.parametrize("question,expected", [r for r in ROUTES if r[0]])
+def test_questions_reach_the_answer_they_asked_for(payload, question, expected):
+    got = ui.resolve(payload, question)
+    assert expected in got["asked"], (
+        f"asked {question!r} and got the answer to {got['asked']!r}. A page that "
+        "answers a question the reader did not ask, in the same confident "
+        "typeface, is the failure mode in the brief wearing a friendly face."
+    )
+
+
+def test_a_question_that_asked_nothing_is_answered_with_nothing(payload):
+    """An empty box is not a question, and must not open a card."""
+    for blank in ("", "   ", "\t"):
+        assert ui.resolve(payload, blank) is None
+
+
+def test_a_forecast_answer_always_carries_the_monthly_caveat(payload):
+    for question, expected in ROUTES:
+        if not question or not expected or "Forecast for" not in expected:
+            continue
+        assert "per month" in ui.resolve(payload, question)["html"], (
+            f"the answer to {question!r} gives a planning number with no "
+            "statement that it is monthly"
+        )
+
+
+def test_every_answer_the_matcher_returns_cites_something(payload):
+    for question in BATTERY:
+        got = ui.resolve(payload, question)
+        if got["asked"] == "Not understood":
+            continue
+        assert 'class="prov"' in got["html"], (
+            f"{question!r} answered with no citation"
+        )
+
+
 @pytest.fixture(scope="module")
 def routed(page, tmp_path_factory):
     if shutil.which("node") is None:
-        pytest.skip("node not available; matcher routing not exercised")
+        pytest.skip("node not available; the browser's copy is not checked")
     built = tmp_path_factory.mktemp("ui") / "yatra.html"
     built.write_text(page, encoding="utf-8")
     probe = Path(__file__).parent / "ui_probe.js"
-    questions = "\n".join(q for q, _ in ROUTES if q)
+    # utf-8 explicitly, and a timeout. The battery carries a question with a
+    # diacritic in it; piped under the Windows locale encoding the write fails
+    # in a thread, node never sees end-of-input, and the test hangs rather than
+    # failing.
     result = subprocess.run(
         ["node", str(probe), str(built)],
-        input=questions, capture_output=True, text=True,
+        input="\n".join(BATTERY), capture_output=True, text=True,
+        encoding="utf-8", timeout=120,
     )
     assert result.returncode == 0, result.stderr
     return {
@@ -356,36 +436,29 @@ def routed(page, tmp_path_factory):
     }
 
 
-@pytest.mark.parametrize("question,expected", [r for r in ROUTES if r[0]])
-def test_questions_reach_the_answer_they_asked_for(routed, question, expected):
+@pytest.mark.parametrize("question", BATTERY)
+def test_the_browser_routes_exactly_as_python_does(routed, payload, question):
+    """The one duplicated rule in the page, pinned.
+
+    Everything else the console shows is written once, in Python, and looked up.
+    This cannot be: the query is not knowable until it is typed, so the routing
+    exists twice. Two definitions of one rule is what the rest of this module
+    was changed to stop having, so the second one is checked against the first
+    rather than believed -- not only on the card it picks, but on every byte of
+    what that card renders, because a slot filled differently on the two sides
+    would show a reader a date nothing in `results/` holds.
+    """
+    expected = ui.resolve(payload, question)
     got = routed[question]
-    assert expected in got["asked"], (
-        f"asked {question!r} and got the answer to {got['asked']!r}. A page that "
-        "answers a question the reader did not ask, in the same confident "
-        "typeface, is the failure mode in the brief wearing a friendly face."
+    assert got["asked"] == expected["asked"], (
+        f"asked {question!r}: the page answers {got['asked']!r} and ui.resolve "
+        f"answers {expected['asked']!r}. The page's copy of the routing has "
+        "drifted from the definition in ui.py."
     )
-
-
-def test_a_forecast_answer_always_carries_the_monthly_caveat(routed):
-    for question, expected in ROUTES:
-        if not question or not expected or "Forecast for" not in expected:
-            continue
-        assert "per month" in routed[question]["html"], (
-            f"the answer to {question!r} gives a planning number with no "
-            "statement that it is monthly"
-        )
-
-
-def test_every_answer_the_matcher_returns_cites_something(routed):
-    for question, expected in ROUTES:
-        if not question:
-            continue
-        got = routed[question]
-        if got["asked"] == "Not understood":
-            continue
-        assert 'class="prov"' in got["html"], (
-            f"{question!r} answered with no citation"
-        )
+    assert got["html"] == expected["html"], (
+        f"asked {question!r}: both reached {expected['asked']!r} and rendered "
+        "it differently."
+    )
 
 
 # --------------------------------------------------------------------------

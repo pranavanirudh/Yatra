@@ -2090,6 +2090,146 @@ def build_payload(art: Artefacts, answers: list[Answer],
 
 
 # --------------------------------------------------------------------------
+# routing
+# --------------------------------------------------------------------------
+#
+# Which card a question reaches. Defined here, in Python, against the same
+# payload the page carries -- so this is not a model of the routing, it is the
+# routing, reading the tables the browser reads.
+#
+# The browser keeps a copy, because a query does not exist until somebody types
+# it and there is no way to pre-compute the answer to a string nobody has
+# written yet. A copy is what the rest of this module spent its last change
+# getting rid of, so this one is not left on trust: `tests/test_ui.py` drives
+# both over the same battery of questions through node and asserts they land on
+# the same card. The Python side is the definition; the copy is held to it.
+#
+# The other thing this buys: routing was the one property of the page that
+# could only be tested where node was installed, and it is the property most
+# worth testing -- "answers the wrong question confidently" is the failure this
+# project is built against. It is now checked by `pytest` alone, and node
+# checks the browser agrees.
+
+#: Words that make an unqualified festival query mean "the next ones".
+_UPCOMING = re.compile(r"\bwhen\b|\bnext\b|\bupcoming\b")
+_FESTIVAL_WORD = re.compile(r"festival")
+_NEXT_MONTH = re.compile(r"\bnext month\b")
+_HORIZON = re.compile(r"\bhorizon\b")
+_YEAR = re.compile(r"\b(19\d{2}|20\d{2})\b")
+_ISO_MONTH = re.compile(r"\b(19\d{2}|20\d{2})[-/](\d{1,2})\b")
+_SLOT = re.compile(r"\{(month|year)\}")
+
+
+def _fill(card: dict[str, str], **values: str) -> dict[str, str]:
+    """Put the date a refusal names back into its slots."""
+    def substitute(text: str) -> str:
+        return _SLOT.sub(lambda m: values[m.group(1)], text)
+
+    return {"asked": substitute(card["asked"]), "html": substitute(card["html"])}
+
+
+def _find_year(query: str) -> str | None:
+    found = _YEAR.search(query)
+    return found.group(1) if found else None
+
+
+def _find_month_key(payload: dict, query: str) -> str | None:
+    iso = _ISO_MONTH.search(query)
+    if iso:
+        number = int(iso.group(2))
+        if 1 <= number <= 12:
+            return f"{iso.group(1)}-{number:02d}"
+
+    year = _find_year(query)
+    number = None
+    for word, month, needs_year in payload["monthWords"]:
+        if needs_year and not year:
+            continue
+        if re.search(rf"\b{word}\b\.?", query):
+            number = month
+            break
+    if number is None:
+        return None
+    if year:
+        return f"{year}-{number:02d}"
+    return payload["defaultMonth"].get(str(number))
+
+
+def _festival_index(payload: dict, query: str) -> int | None:
+    festivals = payload["festivals"]
+    route = None
+    for candidate in festivals["routes"]:
+        if re.search(candidate["re"], query):
+            route = candidate
+            break
+    if route is None:
+        if not (_UPCOMING.search(query) and _FESTIVAL_WORD.search(query)):
+            return None
+        route = festivals["generic"]
+
+    year = _find_year(query)
+    index = route["years"].get(year) if year else route["upcoming"]
+    return festivals["none"] if index is None else index
+
+
+def _bank_index(payload: dict, query: str) -> int | None:
+    words = _content_words(query)
+    if not words:
+        return None
+    best, best_score = None, 0
+    for answer in payload["answers"]:
+        score = sum(1 for word in words if word in answer["vocab"])
+        score += sum(weight for phrase, weight in answer["phrases"]
+                     if phrase in query)
+        if score > best_score:
+            best, best_score = answer, score
+    if best is None or best_score < min(payload["floor"], len(words)):
+        return None
+    return best["card"]
+
+
+def resolve(payload: dict, query: str) -> dict[str, str] | None:
+    """The card a question reaches, or ``None`` if it asked nothing.
+
+    Order matters and is the argument the page makes about itself. A festival
+    name beats a month, because "when is Diwali" names a month it does not want
+    a footfall total for. A month beats a year. A year the record does not
+    reach is refused *here* rather than falling through to the keyword bank,
+    which is how "how many came in 1985" once returned next August's forecast.
+    Everything else is scored, and what does not clear the floor is refused.
+    """
+    query = str(query).lower().strip()
+    if not query:
+        return None
+
+    festival = _festival_index(payload, query)
+    if festival is not None:
+        return payload["cards"][festival]
+
+    if _NEXT_MONTH.search(query):
+        return payload["cards"][payload["nextMonth"]]
+
+    key = _find_month_key(payload, query)
+    if key:
+        for table in ("forecast", "observations"):
+            if key in payload[table]:
+                return payload["cards"][payload[table][key]]
+        month = f"{MONTH_NAMES[int(key[5:]) - 1]} {key[:4]}"
+        return _fill(payload["cards"][payload["outsideMonth"]], month=month)
+
+    year = _find_year(query)
+    if year and not _HORIZON.search(query):
+        if year in payload["years"]:
+            return payload["cards"][payload["years"][year]]
+        return _fill(payload["cards"][payload["outsideYear"]], year=year)
+
+    index = _bank_index(payload, query)
+    if index is None:
+        return payload["cards"][payload["unknown"]]
+    return payload["cards"][index]
+
+
+# --------------------------------------------------------------------------
 # the browser's share of the work
 # --------------------------------------------------------------------------
 #

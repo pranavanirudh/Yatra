@@ -241,9 +241,22 @@ surface is where those go quiet first.
 `tests/test_ui.py` asserts the two agree. Same scar as §3.3 and §3.7: a builder
 missing from the tuple is an answer the page silently stops giving.
 
-Routing is exercised through the real matcher in node (`tests/ui_probe.js`),
-because "answers the wrong question confidently" is not a property any assertion
-about the HTML can catch. If node is absent those tests skip; nothing else does.
+**Routing is defined in `ui.resolve`, and the page's copy is held to it.**
+Which card a question reaches is not a property any assertion about the HTML
+can catch, and "answers the wrong question confidently" is the failure this
+project is built against — so it is settled in Python, against the same payload
+the page carries, and `pytest` exercises it with no browser in sight.
+
+The browser keeps a copy because a query does not exist until somebody types
+one; that is the single rule in this module with two definitions, and it is not
+left on trust. `tests/test_ui.py` drives both over one battery through node
+(`tests/ui_probe.js`) and requires the same card out of each, compared on the
+rendered bytes and not just the title — a refusal that filled its date slot
+differently on the two sides would show a reader a month nothing in `results/`
+holds. The battery carries the cases where the two could plausibly diverge:
+case, diacritics, an impossible ISO month, and "may" as a modal verb. If node
+is absent only that conformance check skips; the routing is still tested,
+which it was not while it lived in a string constant.
 
 ### 3.9 The per-window shock section states a pattern, never a cell
 
