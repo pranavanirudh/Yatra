@@ -27,6 +27,7 @@ from . import (
     sensitivity,
     ui,
 )
+from . import __version__
 from . import figures as figures_mod
 from . import ingest as ingest_mod
 from . import operations as operations_mod
@@ -477,6 +478,61 @@ ALL_ORDER = [
 # inside the project venv, which an installed console script must not do
 # because it is already running in the environment it was installed into.
 
+USAGE = "usage: yatra [target ...] [stage options]"
+
+HELP_FLAGS = ("-h", "--help")
+VERSION_FLAGS = ("-V", "--version")
+
+
+def _summary(name: str) -> str:
+    """The stage's own first docstring line.
+
+    Read rather than restated, so the help cannot describe a stage as something
+    it stopped being. A second list of one-line descriptions is the same shape
+    of mistake as a hand-typed README number.
+    """
+    doc = (STAGES[name].__doc__ or "").strip().splitlines()
+    return doc[0].strip() if doc else ""
+
+
+def usage() -> str:
+    """The help text, generated from the stage table it describes."""
+    lines = [
+        "yatra -- regime-separated forecasting of pilgrimage footfall at",
+        "        Shri Mata Vaishno Devi, Katra.",
+        "",
+        USAGE,
+        "",
+        "Targets, in the order `all` runs them:",
+    ]
+    lines += [f"  {name:<14} {_summary(name)}" for name in ALL_ORDER]
+
+    aside = [name for name in STAGES if name not in ALL_ORDER]
+    if aside:
+        lines += ["", "Not part of `all`, invoked by name:"]
+        lines += [f"  {name:<14} {_summary(name)}" for name in aside]
+
+    lines += [
+        "",
+        "`yatra` with no target runs `all`, the way a bare `make` does. That is",
+        "deliberate: `all` is the pipeline, and running it is what this command",
+        "is for. It takes a while and it rewrites results/.",
+        "",
+        "`ingest` is outside `all` on purpose. It writes data/raw/, and the",
+        "observation set must not change underneath a run scoring against it.",
+        "",
+        "Options after a target belong to that stage:",
+        "  yatra ingest --inspect published_figures.csv",
+        "",
+        "  -h, --help     this text",
+        "  -V, --version  print the version and exit",
+        "",
+        "From a checkout, without installing: `python make.py <target>` -- the",
+        "same targets, in the same order, through the same code.",
+    ]
+    return "\n".join(lines)
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run one or more stages, in the order given. Returns a process exit code.
 
@@ -485,6 +541,21 @@ def main(argv: list[str] | None = None) -> int:
     underneath a run that is scoring against it.
     """
     words = list(sys.argv[1:] if argv is None else argv)
+
+    # A leading flag is not an empty target list. It used to become one, and an
+    # empty target list means `all` -- so `yatra --help`, the first thing
+    # anybody types after installing, ran the entire pipeline and rewrote
+    # results/. Nothing that starts with a dash gets that far now.
+    if words and words[0].startswith("-"):
+        if words[0] in HELP_FLAGS:
+            print(usage())
+            return 0
+        if words[0] in VERSION_FLAGS:
+            print(f"yatra {__version__}")
+            return 0
+        print(f"unknown option: {words[0]}", file=sys.stderr)
+        print(f"{USAGE}\ntry `yatra --help`", file=sys.stderr)
+        return 2
 
     # Everything up to the first flag is a target; the rest belongs to the
     # stage, which reads sys.argv itself. Without this split, `yatra ingest

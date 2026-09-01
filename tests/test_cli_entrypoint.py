@@ -194,3 +194,96 @@ def test_make_py_owns_the_interpreter_check_and_nothing_else(make_py):
         "make.py dispatches stages itself again. That is a second definition of "
         "what a target is, and it will drift from the one the console script uses."
     )
+
+
+# --------------------------------------------------------------------------
+# flags, which used to mean "run everything"
+# --------------------------------------------------------------------------
+#
+# `yatra --help` ran the entire pipeline. The flag split put the cut at index
+# zero, an empty target list means `all`, and `all` rewrites results/ -- so the
+# first thing anybody types after installing was the most destructive thing the
+# command can do. These tests are about the class, not the one flag: nothing
+# starting with a dash may reach a stage.
+
+LEADING_FLAGS = ("-h", "--help", "-V", "--version", "--inspect", "-x",
+                 "--dry-run", "--", "-")
+
+
+@pytest.mark.parametrize("flag", LEADING_FLAGS)
+def test_no_leading_flag_ever_starts_the_pipeline(flag, recorded):
+    cli.main([flag])
+    assert not recorded, (
+        f"`yatra {flag}` ran {recorded}. A flag is not an empty target list, "
+        "and an empty target list is the whole pipeline."
+    )
+
+
+@pytest.mark.parametrize("flag", ["-h", "--help"])
+def test_help_prints_usage_and_exits_zero(flag, recorded, capsys):
+    assert cli.main([flag]) == 0
+    assert not recorded
+    assert cli.USAGE in capsys.readouterr().out
+
+
+def test_the_help_describes_every_stage_out_of_the_stage_table(capsys):
+    """Generated from STAGES, so it cannot describe a stage that moved.
+
+    A hand-typed target list is the same shape of mistake as a hand-typed
+    README number: correct when written, silently wrong after a rename.
+    """
+    assert cli.main(["--help"]) == 0
+    text = capsys.readouterr().out
+    for name in cli.STAGES:
+        assert name in text, f"the help does not mention the {name} stage"
+        summary = cli._summary(name)
+        assert summary and summary in text, (
+            f"the help does not carry {name}'s own one-line description"
+        )
+
+
+def test_the_help_says_that_a_bare_invocation_runs_everything(capsys):
+    """It is deliberate, so it must not be a surprise."""
+    assert cli.main(["--help"]) == 0
+    text = capsys.readouterr().out
+    assert "no target runs `all`" in text
+    assert "rewrites results/" in text
+    assert "make.py" in text, (
+        "the help does not mention the checkout entry point, so a reader "
+        "without an install is told nothing"
+    )
+
+
+def test_the_help_marks_ingest_as_outside_all(capsys):
+    assert cli.main(["--help"]) == 0
+    text = capsys.readouterr().out
+    assert "Not part of `all`" in text
+    assert "data/raw/" in text
+
+
+def test_version_prints_the_package_version_and_runs_nothing(recorded, capsys):
+    from yatra import __version__
+
+    assert cli.main(["--version"]) == 0
+    assert not recorded
+    assert __version__ in capsys.readouterr().out
+
+
+def test_an_unknown_flag_is_refused_and_points_at_the_help(recorded, capsys):
+    assert cli.main(["--inspect", "figures.csv"]) == 2
+    assert not recorded, "a stage ran on an invocation that named no target"
+    error = capsys.readouterr().err
+    assert "--inspect" in error
+    assert "--help" in error
+
+
+def test_a_bare_invocation_still_runs_all(recorded):
+    """The deliberate half of the behaviour, kept: `yatra` is `make`."""
+    assert cli.main([]) == 0
+    assert recorded == cli.ALL_ORDER
+
+
+def test_make_py_gets_the_same_flag_handling(make_py, recorded, capsys):
+    assert make_py.main(["make.py", "--help"]) == 0
+    assert not recorded, "`python make.py --help` ran the pipeline"
+    assert cli.USAGE in capsys.readouterr().out

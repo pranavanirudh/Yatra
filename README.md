@@ -115,6 +115,21 @@ python make.py all      # or `make all` where make exists
 the environment exists — it does not matter which interpreter you invoke it
 with. The minimum Python version is declared in `pyproject.toml`.
 
+Installing also puts a `yatra` command on the path. It runs the same stages
+through the same dispatcher `make.py` uses, so there is nothing it can do that
+`make.py` cannot and no way for the two to disagree:
+
+```bash
+yatra --help            # the targets, and what each one does
+yatra validate          # one stage
+yatra ingest --inspect published.csv   # options after a target go to the stage
+yatra                   # no target means `all`, the way a bare `make` does
+```
+
+A bare `yatra` running the whole pipeline is deliberate, and the help says so
+where you will read it before finding out: `all` is what the command is for,
+and it rewrites `results/`.
+
 Two things are fetched or built rather than committed. The virtual environment
 is yours to create, above. The ephemeris kernel is downloaded on demand the
 first time the calendar stage runs — it is a large binary reproducible from a
